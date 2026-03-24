@@ -14,9 +14,9 @@ export function BankPanel({ business }: { business: Business }) {
     setBankRates(business.id, depositRate, loanRate);
   };
 
-  const vaultCapacity = data.vaultLevel * 50_000_000;
-  const vaultPercent = Math.min(100, (data.vaultValue / vaultCapacity) * 100);
-  const upgradeCost = data.vaultLevel * 10_000_000;
+  const vaultCapacity = BigInt(data.vaultLevel) * 50_000_000n;
+  const vaultPercent = data.vaultValue >= vaultCapacity ? 100 : Number((data.vaultValue * 100n) / vaultCapacity);
+  const upgradeCost = BigInt(data.vaultLevel) * 10_000_000n;
 
   return (
     <div className="space-y-6">

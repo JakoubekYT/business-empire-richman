@@ -8,16 +8,16 @@ export function OilGasPanel({ business }: { business: Business }) {
   const data = business.data as Extract<import("../../types/game").BusinessData, { ownedWells: string[], refineryLevel: number }>;
   const { money, buyOilWell, upgradeRefinery } = useGameStore();
 
-  const refineryCost = data.refineryLevel * 50_000_000;
-  const barrelPrice = 80 + (data.refineryLevel * 10);
+  const refineryCost = BigInt(data.refineryLevel) * 50_000_000n;
+  const barrelPrice = 80n + (BigInt(data.refineryLevel) * 10n);
   
-  let totalBarrelsPerDay = 0;
+  let totalBarrelsPerDay = 0n;
   data.ownedWells.forEach(wId => {
     const well = OIL_WELL_TYPES.find(w => w.id === wId);
-    if (well) totalBarrelsPerDay += well.barrelsPerDay;
+    if (well) totalBarrelsPerDay += BigInt(well.barrelsPerDay);
   });
 
-  const incomePerHour = (totalBarrelsPerDay / 24) * barrelPrice;
+  const incomePerHour = (totalBarrelsPerDay * barrelPrice) / 24n;
 
   return (
     <div className="space-y-6">
@@ -74,7 +74,7 @@ export function OilGasPanel({ business }: { business: Business }) {
                     </div>
                     <p className="text-slate-400 text-sm mt-1">Flow Rate: <span className="text-blue-400 font-bold">{well.barrelsPerDay.toLocaleString()}</span> bbl/day</p>
                     <p className="text-emerald-400 font-bold text-sm mt-1">
-                      Gross: +{formatMoney((well.barrelsPerDay / 24) * barrelPrice)}/hr
+                      Gross: +{formatMoney((BigInt(well.barrelsPerDay) * barrelPrice) / 24n)}/hr
                     </p>
                   </div>
                   <div className="w-full sm:w-auto text-right flex flex-col sm:items-end w-full">

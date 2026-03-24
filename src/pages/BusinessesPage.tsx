@@ -1,8 +1,15 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useGameStore } from "../store/gameStore";
 import { formatMoney } from "../utils/format";
 import type { Business } from "../types/game";
 import { BusinessDetailPanel } from "../components/BusinessDetailPanel";
+
+interface ClickParticle {
+  id: number;
+  x: number;
+  y: number;
+  value: number;
+}
 
 function BusinessCard({ business, onClick }: { business: Business, onClick?: () => void }) {
   const { unlockBusiness, money } = useGameStore();
@@ -78,11 +85,25 @@ function BusinessCard({ business, onClick }: { business: Business, onClick?: () 
 }
 
 export default function BusinessesPage() {
-  const { businesses, incomePerHour, money } = useGameStore();
+  const { businesses, incomePerHour, money, click, clickValue } = useGameStore();
   const [filter, setFilter] = useState<string>("ALL");
   const [selectedBusiness, setSelectedBusiness] = useState<Business | null>(null);
+  
+  const [particles, setParticles] = useState<ClickParticle[]>([]);
+  const [clickAnim, setClickAnim] = useState(false);
+  const particleIdRef = useRef(0);
 
-  const categories = ["ALL", "taxi", "car_dealership", "store", "factory", "shipping", "construction", "it_company", "bank", "football", "oil_gas", "clothing", "space"];
+  const handleClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    click();
+    setClickAnim(true);
+    setTimeout(() => setClickAnim(false), 100);
+    const rect = e.currentTarget.getBoundingClientRect();
+    const id = particleIdRef.current++;
+    setParticles((prev) => [...prev, { id, x: e.clientX - rect.left, y: e.clientY - rect.top, value: clickValue }]);
+    setTimeout(() => setParticles((prev) => prev.filter((p) => p.id !== id)), 800);
+  };
+
+  const categories = ["ALL", "taxi", "car_dealership", "store", "factory", "shipping", "construction", "it_company", "bank", "football", "oil_gas", "clothing", "space", "merger"];
   const filtered = filter === "ALL" ? businesses : businesses.filter((b) => b.type === filter);
   const ownedCount = businesses.filter((b) => b.owned).length;
 
@@ -90,8 +111,8 @@ export default function BusinessesPage() {
     <div className="section">
       <div className="section-header">
         <div>
-          <h1 className="section-title">Businesses</h1>
-          <p className="section-subtitle">{ownedCount} / {businesses.length} owned · {formatMoney(incomePerHour)}/hr total</p>
+          <h1 className="section-title">Empire</h1>
+          <p className="section-subtitle">{ownedCount} / {businesses.length} ventures · {formatMoney(incomePerHour)}/hr</p>
         </div>
         <div style={{
           background: "rgba(245,197,24,0.1)",
@@ -102,6 +123,48 @@ export default function BusinessesPage() {
         }}>
           <div style={{ fontSize: 11, color: "var(--text-muted)", fontWeight: 600 }}>CASH</div>
           <div style={{ color: "var(--accent-gold)", fontWeight: 800 }}>{formatMoney(money)}</div>
+        </div>
+      </div>
+
+      {/* Manual Clicker Area */}
+      <div style={{ display: "flex", justifyContent: "center", marginBottom: 32, marginTop: 12 }}>
+        <div 
+          onClick={handleClick}
+          style={{ 
+            position: "relative", 
+            cursor: "pointer",
+            width: 140,
+            height: 140,
+            borderRadius: "50%",
+            background: clickAnim ? "var(--accent-gold)" : "rgba(245,197,24,0.1)",
+            border: "2px solid var(--accent-gold)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            fontSize: 48,
+            transition: "all 0.1s ease",
+            transform: clickAnim ? "scale(0.95)" : "scale(1)",
+            boxShadow: clickAnim ? "0 0 40px rgba(245,197,24,0.4)" : "none",
+            userSelect: "none"
+          }}
+        >
+          💰
+          {/* Particles */}
+          {particles.map((p) => (
+            <div key={p.id} style={{
+              position: "absolute",
+              left: p.x,
+              top: p.y,
+              pointerEvents: "none",
+              color: "var(--accent-gold)",
+              fontWeight: 800,
+              fontSize: 16,
+              animation: "slideInUp 0.8s ease forwards",
+              zIndex: 10
+            }}>
+              +${p.value}
+            </div>
+          ))}
         </div>
       </div>
 

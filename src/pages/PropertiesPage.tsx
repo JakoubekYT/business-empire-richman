@@ -7,9 +7,6 @@ function PropertyCard({ property }: { property: Property }) {
   const { buyProperty, buyImprovement, money } = useGameStore();
   const [expanded, setExpanded] = useState(false);
 
-  const totalImprovedIncome = property.owned
-    ? property.baseIncomePerHour + property.improvements.reduce((sum, i) => (i.purchased ? sum + (property.baseIncomePerHour * (i.incomeBonusPercent / 100)) : sum), 0)
-    : 0;
   const allImproved = property.improvements.every((i) => i.purchased);
 
   const cityBg: Record<string, string> = {
@@ -56,8 +53,8 @@ function PropertyCard({ property }: { property: Property }) {
           </div>
           {property.owned && (
             <div style={{ textAlign: "right" }}>
-              <div style={{ fontSize: 11, color: "var(--text-muted)", fontWeight: 600, marginBottom: 2 }}>TOTAL INCOME</div>
-              <div style={{ color: "var(--accent-green)", fontWeight: 700 }}>{formatMoney(totalImprovedIncome)}/hr</div>
+              <div style={{ fontSize: 11, color: "var(--text-muted)", fontWeight: 600, marginBottom: 2 }}>PENDING RENT</div>
+              <div style={{ color: "var(--accent-gold)", fontWeight: 700 }}>{formatMoney(property.pendingRent || 0)}</div>
             </div>
           )}
         </div>
@@ -121,11 +118,12 @@ function PropertyCard({ property }: { property: Property }) {
 }
 
 export default function PropertiesPage() {
-  const { properties, money } = useGameStore();
+  const { properties, money, claimAllProperties } = useGameStore();
   const propertyIncome = properties.reduce((sum, p) => {
     if (!p.owned) return sum;
     return sum + p.baseIncomePerHour + p.improvements.reduce((ib, i) => (i.purchased ? ib + (p.baseIncomePerHour * (i.incomeBonusPercent / 100)) : ib), 0);
   }, 0);
+  const totalPendingRent = properties.reduce((sum, p) => sum + (p.pendingRent || 0), 0);
   const ownedCount = properties.filter((p) => p.owned).length;
 
   return (
@@ -133,17 +131,28 @@ export default function PropertiesPage() {
       <div className="section-header">
         <div>
           <h1 className="section-title">Properties</h1>
-          <p className="section-subtitle">{ownedCount} owned · {formatMoney(propertyIncome)}/hr from real estate</p>
+          <p className="section-subtitle">{ownedCount} owned · {formatMoney(propertyIncome)}/hr</p>
         </div>
-        <div style={{
-          background: "rgba(167,139,250,0.1)",
-          border: "1px solid rgba(167,139,250,0.2)",
-          borderRadius: "var(--radius-md)",
-          padding: "6px 12px",
-          textAlign: "center",
-        }}>
-          <div style={{ fontSize: 11, color: "var(--text-muted)", fontWeight: 600 }}>CASH</div>
-          <div style={{ color: "var(--accent-purple)", fontWeight: 800 }}>{formatMoney(money)}</div>
+        <div style={{ display: "flex", gap: 10 }}>
+          {totalPendingRent > 0 && (
+            <button
+              className="btn btn-green btn-sm"
+              onClick={claimAllProperties}
+              style={{ padding: "6px 12px", border: "1px solid var(--accent-green)" }}
+            >
+              Claim {formatMoney(totalPendingRent)}
+            </button>
+          )}
+          <div style={{
+            background: "rgba(167,139,250,0.1)",
+            border: "1px solid rgba(167,139,250,0.2)",
+            borderRadius: "var(--radius-md)",
+            padding: "6px 12px",
+            textAlign: "center",
+          }}>
+            <div style={{ fontSize: 11, color: "var(--text-muted)", fontWeight: 600 }}>CASH</div>
+            <div style={{ color: "var(--accent-purple)", fontWeight: 800 }}>{formatMoney(money)}</div>
+          </div>
         </div>
       </div>
 

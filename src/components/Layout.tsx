@@ -1,13 +1,13 @@
 import { useNavigate, useLocation } from "react-router-dom";
 import { useGameStore } from "../store/gameStore";
 import { formatMoney } from "../utils/format";
+import { InsigniaModal } from "./InsigniaModal";
 
 const navItems = [
-  { path: "/", icon: "🏠", label: "Home" },
-  { path: "/businesses", icon: "🏢", label: "Businesses" },
-  { path: "/properties", icon: "🏘️", label: "Properties" },
+  { path: "/businesses", icon: "💼", label: "Business" },
   { path: "/investments", icon: "📈", label: "Invest" },
-  { path: "/luxury", icon: "💎", label: "Luxury" },
+  { path: "/properties", icon: "🏘️", label: "Property" },
+  { path: "/crypto", icon: "₿", label: "Crypto" },
   { path: "/profile", icon: "👤", label: "Profile" },
 ];
 
@@ -112,6 +112,8 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       <main style={{ flex: 1, overflowY: "auto", paddingBottom: "80px" }}>
         {children}
       </main>
+
+      <InsigniaModal />
 
       {/* Mobile bottom nav */}
       <nav style={{

@@ -1,20 +1,52 @@
 import { create } from "zustand";
 import { doc, setDoc, getDoc } from "firebase/firestore";
 import { db } from "../firebase";
-import type { GameState, TaxiData, ShippingData, StoreData, ConstructionData, CarDealershipData, ITData, ActiveITProject } from "../types/game";
-import { INITIAL_BUSINESSES, INITIAL_STOCKS, INITIAL_CRYPTO, INITIAL_LUXURY, INITIAL_ACHIEVEMENTS, INITIAL_DAILY_TASKS, INITIAL_CLICK_UPGRADES, TAXI_SLOT_PACKAGES, TAXI_CAR_MODELS, SHIPPING_SLOT_PACKAGES, SHIPPING_VEHICLE_MODELS, STORE_PRODUCTS, FACTORY_PRODUCTS, CONSTRUCTION_PROJECTS, INITIAL_PROPERTIES, DEALER_CAR_MODELS, IT_PROJECTS, EMPLOYEE_TYPES, FOOTBALL_PLAYER_TYPES, OIL_WELL_TYPES, CLOTHING_COLLECTIONS, CLOTHING_STORES_DATA, ROCKET_TYPES, SPACE_MISSIONS, generateMarketCars } from "../data/gameData";
+import type { GameState, TaxiData, ShippingData, StoreData, ConstructionData, CarDealershipData, ITData, ActiveITProject, Business, Rank, BusinessMerger } from "../types/game";
+import { INITIAL_BUSINESSES, INITIAL_STOCKS, INITIAL_CRYPTO, INITIAL_LUXURY, INITIAL_ACHIEVEMENTS, INITIAL_DAILY_TASKS, INITIAL_CLICK_UPGRADES, TAXI_SLOT_PACKAGES, TAXI_CAR_MODELS, SHIPPING_SLOT_PACKAGES, SHIPPING_VEHICLE_MODELS, STORE_PRODUCTS, FACTORY_PRODUCTS, CONSTRUCTION_PROJECTS, INITIAL_PROPERTIES, DEALER_CAR_MODELS, IT_PROJECTS, EMPLOYEE_TYPES, FOOTBALL_PLAYER_TYPES, OIL_WELL_TYPES, CLOTHING_COLLECTIONS, CLOTHING_STORES_DATA, ROCKET_TYPES, SPACE_MISSIONS, generateMarketCars, RANKS, MERGERS } from "../data/gameData";
+
+const BIGINT_PREFIX = "__bigint:";
+
+function serializeBigInt(obj: any): any {
+  if (obj === null || obj === undefined) return obj;
+  if (typeof obj === 'bigint') return BIGINT_PREFIX + obj.toString();
+  if (Array.isArray(obj)) return obj.map(serializeBigInt);
+  if (typeof obj === 'object') {
+    const newObj: any = {};
+    for (const key in obj) {
+      newObj[key] = serializeBigInt(obj[key]);
+    }
+    return newObj;
+  }
+  return obj;
+}
+
+function deserializeBigInt(obj: any): any {
+  if (obj === null || obj === undefined) return obj;
+  if (typeof obj === 'string' && obj.startsWith(BIGINT_PREFIX)) {
+    return BigInt(obj.slice(BIGINT_PREFIX.length));
+  }
+  if (Array.isArray(obj)) return obj.map(deserializeBigInt);
+  if (typeof obj === 'object') {
+    const newObj: any = {};
+    for (const key in obj) {
+      newObj[key] = deserializeBigInt(obj[key]);
+    }
+    return newObj;
+  }
+  return obj;
+}
 
 const initialState: GameState = {
-  money: 0,
-  totalEarned: 0,
-  netWorth: 0,
-  incomePerHour: 0,
+  money: 0n,
+  totalEarned: 0n,
+  netWorth: 0n,
+  incomePerHour: 0n,
   businesses: INITIAL_BUSINESSES,
   properties: INITIAL_PROPERTIES,
   stocks: INITIAL_STOCKS,
   crypto: INITIAL_CRYPTO,
   luxuryItems: INITIAL_LUXURY,
-  clickValue: 1,
+  clickValue: 1n,
   totalClicks: 0,
   clickUpgrades: [],
   autoClickRate: 0,
@@ -26,6 +58,8 @@ const initialState: GameState = {
   lastSavedAt: Date.now(),
   lastTickAt: Date.now(),
   lastDividendAt: Date.now(),
+  currentRankLevel: 1,
+  unlockedMergers: [],
   notifications: [],
 };
 
@@ -60,10 +94,13 @@ export const useGameStore = create<GameState & {
   claimDailyTask: (id: string) => void;
 
   // Investments
-  buyShares: (ticker: string, amount: number) => void;
-  sellShares: (ticker: string, amount: number) => void;
-  buyCrypto: (coinId: string, amount: number) => void;
-  sellCrypto: (coinId: string, amount: number) => void;
+  buyShares: (ticker: string, amount: number | bigint) => void;
+  sellShares: (ticker: string, amount: number | bigint) => void;
+  buyCrypto: (coinId: string, amount: number | bigint) => void;
+  sellCrypto: (coinId: string, amount: number | bigint) => void;
+
+  // Prestige
+  prestige: () => void;
 
   // Business unlocks
   unlockBusiness: (id: string) => void;
@@ -128,7 +165,13 @@ export const useGameStore = create<GameState & {
   startSpaceMission: (businessId: string, missionId: string, rocketId: string) => void;
   collectSpaceMission: (businessId: string, activeMissionId: string) => void;
   updateMarketPrices: () => void;
-
+  
+  // Real Estate
+  claimAllProperties: () => void;
+  
+  // Ranks & Mergers
+  checkRankUnlock: () => void;
+  performMerger: (mergerId: string) => void;
 }>((set, get) => ({
   ...initialState,
   uid: null,
@@ -139,12 +182,13 @@ export const useGameStore = create<GameState & {
       const docRef = doc(db, "users", uid);
       const docSnap = await getDoc(docRef);
       if (docSnap.exists()) {
-        const data = docSnap.data().gameState as GameState;
+        const rawData = docSnap.data().gameState;
+        const data = deserializeBigInt(rawData) as GameState;
         if (data) {
           // offline calculation
           const now = Date.now();
-          const msPassed = now - (data.lastTickAt || now);
-          const offlineEarned = (data.incomePerHour / 3600000) * msPassed;
+          const msPassed = BigInt(now - (data.lastTickAt || now));
+          const offlineEarned = (data.incomePerHour * msPassed) / 3600000n;
           
           set({
             ...initialState,
@@ -163,11 +207,13 @@ export const useGameStore = create<GameState & {
     try {
       const state = get();
       const stToSave = { ...state } as any;
-      // @ts-ignore
-      delete stToSave.loadProfile; delete stToSave.saveProfile; delete stToSave.loadGame; delete stToSave.saveGame;
-      delete stToSave.tick; delete stToSave.click; delete stToSave.updateMarketPrices;
+      // Remove functions
+      Object.keys(stToSave).forEach(key => {
+        if (typeof stToSave[key] === 'function') delete stToSave[key];
+      });
       
-      await setDoc(doc(db, "users", uid), { gameState: { ...stToSave, lastSavedAt: Date.now() } }, { merge: true });
+      const serialized = serializeBigInt({ ...stToSave, lastSavedAt: Date.now() });
+      await setDoc(doc(db, "users", uid), { gameState: serialized }, { merge: true });
     } catch (e) {
       console.error(e);
     }
@@ -184,7 +230,7 @@ export const useGameStore = create<GameState & {
 
 
   click: () => set(state => {
-    const earned = state.clickValue * (1 + state.prestigeBonus);
+    const earned = state.clickValue * (1n + BigInt(state.prestigeBonus));
     return {
       money: state.money + earned,
       totalEarned: state.totalEarned + earned,
@@ -200,8 +246,8 @@ export const useGameStore = create<GameState & {
      let newClickValue = state.clickValue;
      let newAutoClick = state.autoClickRate;
 
-     if (upgrade.effectType === 'add_click') newClickValue += upgrade.value;
-     else if (upgrade.effectType === 'mult_click') newClickValue *= upgrade.value;
+     if (upgrade.effectType === 'add_click') newClickValue += BigInt(upgrade.value);
+     else if (upgrade.effectType === 'mult_click') newClickValue *= BigInt(upgrade.value);
      else if (upgrade.effectType === 'add_auto') newAutoClick += upgrade.value;
 
      return {
@@ -250,7 +296,7 @@ export const useGameStore = create<GameState & {
     const imp = prop.improvements.find(i => i.id === improvementId);
     if (!imp || imp.purchased) return state;
 
-    const cost = prop.basePurchaseCost * (imp.costPercent / 100);
+    const cost = (prop.basePurchaseCost * BigInt(imp.costPercent)) / 100n;
     if (state.money < cost) return state;
 
     const newImprovements = prop.improvements.map(i => i.id === improvementId ? { ...i, purchased: true } : i);
@@ -269,42 +315,42 @@ export const useGameStore = create<GameState & {
   buyShares: (ticker, amount) => set(state => {
     const stock = state.stocks.find(s => s.ticker === ticker);
     if (!stock) return state;
-    const totalCost = stock.currentPrice * amount;
+    const totalCost = stock.currentPrice * BigInt(amount);
     if (state.money < totalCost) return state;
     return {
       money: state.money - totalCost,
-      stocks: state.stocks.map(s => s.ticker === ticker ? { ...s, sharesOwned: s.sharesOwned + amount } : s)
+      stocks: state.stocks.map(s => s.ticker === ticker ? { ...s, sharesOwned: s.sharesOwned + BigInt(amount) } : s)
     };
   }),
 
   sellShares: (ticker, amount) => set(state => {
     const stock = state.stocks.find(s => s.ticker === ticker);
-    if (!stock || stock.sharesOwned < amount) return state;
-    const revenue = stock.currentPrice * amount;
+    if (!stock || stock.sharesOwned < BigInt(amount)) return state;
+    const revenue = stock.currentPrice * BigInt(amount);
     return {
       money: state.money + revenue,
-      stocks: state.stocks.map(s => s.ticker === ticker ? { ...s, sharesOwned: s.sharesOwned - amount } : s)
+      stocks: state.stocks.map(s => s.ticker === ticker ? { ...s, sharesOwned: s.sharesOwned - BigInt(amount) } : s)
     };
   }),
 
   buyCrypto: (coinId, amount) => set(state => {
     const coin = state.crypto.find(c => c.id === coinId);
     if (!coin) return state;
-    const totalCost = coin.currentPrice * amount;
+    const totalCost = coin.currentPrice * BigInt(amount);
     if (state.money < totalCost) return state;
     return {
       money: state.money - totalCost,
-      crypto: state.crypto.map(c => c.id === coinId ? { ...c, amountOwned: c.amountOwned + amount } : c)
+      crypto: state.crypto.map(c => c.id === coinId ? { ...c, amountOwned: c.amountOwned + BigInt(amount) } : c)
     };
   }),
 
   sellCrypto: (coinId, amount) => set(state => {
     const coin = state.crypto.find(c => c.id === coinId);
-    if (!coin || coin.amountOwned < amount) return state;
-    const revenue = coin.currentPrice * amount;
+    if (!coin || coin.amountOwned < BigInt(amount)) return state;
+    const revenue = coin.currentPrice * BigInt(amount);
     return {
       money: state.money + revenue,
-      crypto: state.crypto.map(c => c.id === coinId ? { ...c, amountOwned: c.amountOwned - amount } : c)
+      crypto: state.crypto.map(c => c.id === coinId ? { ...c, amountOwned: c.amountOwned - BigInt(amount) } : c)
     };
   }),
 
@@ -313,29 +359,39 @@ export const useGameStore = create<GameState & {
     if (!item || item.owned) return state;
 
     // Calculate percent additions
-    let priceMultiplier = 1;
-    let nwMultiplier = 1;
+    let priceMultiplierBasis = 100n;
+    let nwMultiplierBasis = 100n;
 
     selectedModifiers.forEach(modId => {
       const m = item.availableModifiers.find(max => max.id === modId);
       if (m) {
-        priceMultiplier += (m.costPercent / 100);
-        nwMultiplier += (m.netWorthBoostPercent / 100);
+        priceMultiplierBasis += BigInt(m.costPercent);
+        nwMultiplierBasis += BigInt(m.netWorthBoostPercent);
       }
     });
 
-    const finalCost = item.baseCost * priceMultiplier;
+    const finalCost = (item.baseCost * priceMultiplierBasis) / 100n;
 
     if (item.costCurrency === 'money') {
       if (state.money < finalCost) return state;
       return {
         money: state.money - finalCost,
-        netWorth: state.netWorth + (item.baseNetWorthBoost * nwMultiplier),
+        netWorth: state.netWorth + ((item.baseNetWorthBoost * nwMultiplierBasis) / 100n),
         luxuryItems: state.luxuryItems.map(i => i.id === itemId ? { ...i, owned: true, appliedModifiers: selectedModifiers } : i)
       };
     } else {
-      // Crypto purchase (skipping deep logic for brevity, assuming standard deduct)
-      return state;
+      // Crypto purchase
+      const coinId = item.cryptoCoinId || 'btc';
+      const coin = state.crypto.find(c => c.id === coinId);
+      if (!coin || state.money < 0n) return state; // Placeholder for crypto logic
+      const cryptoCost = (item.cryptoAmount! * priceMultiplierBasis) / 100n;
+      if (coin.amountOwned < cryptoCost) return state;
+      
+      return {
+        crypto: state.crypto.map(c => c.id === coinId ? { ...c, amountOwned: c.amountOwned - cryptoCost } : c),
+        netWorth: state.netWorth + ((item.baseNetWorthBoost * nwMultiplierBasis) / 100n),
+        luxuryItems: state.luxuryItems.map(i => i.id === itemId ? { ...i, owned: true, appliedModifiers: selectedModifiers } : i)
+      };
     }
   }),
 
@@ -343,21 +399,22 @@ export const useGameStore = create<GameState & {
     const item = state.luxuryItems.find(i => i.id === itemId);
     if (!item || !item.owned || item.costCurrency !== 'money') return state;
 
-    let priceMultiplier = 1;
-    let nwMultiplier = 1;
+    let priceMultiplierBasis = 100n;
+    let nwMultiplierBasis = 100n;
     item.appliedModifiers.forEach(modId => {
        const m = item.availableModifiers.find(max => max.id === modId);
        if (m) {
-         priceMultiplier += (m.costPercent / 100);
-         nwMultiplier += (m.netWorthBoostPercent / 100);
+         priceMultiplierBasis += BigInt(m.costPercent);
+         nwMultiplierBasis += BigInt(m.netWorthBoostPercent);
        }
     });
 
-    const sellPrice = (item.baseCost * priceMultiplier) * 0.8; // Lose 20% value on sell
+    const costValue = (item.baseCost * priceMultiplierBasis) / 100n;
+    const sellPrice = (costValue * 80n) / 100n; // Lose 20% value on sell
 
     return {
       money: state.money + sellPrice,
-      netWorth: state.netWorth - (item.baseNetWorthBoost * nwMultiplier),
+      netWorth: state.netWorth - ((item.baseNetWorthBoost * nwMultiplierBasis) / 100n),
       luxuryItems: state.luxuryItems.map(i => i.id === itemId ? { ...i, owned: false, appliedModifiers: [] } : i)
     };
   }),
@@ -382,7 +439,7 @@ export const useGameStore = create<GameState & {
     if (state.money < pkg.cost) return state;
 
     const data = b.data as TaxiData;
-    const newSlots = Array.from({ length: pkg.slots }).map((_, i) => ({ id: data.parkingSlots.length + i, cost: 500, unlocked: true }));
+    const newSlots = Array.from({ length: pkg.slots }).map((_, i) => ({ id: data.parkingSlots.length + i, cost: 500n, unlocked: true }));
 
     return {
       money: state.money - pkg.cost,
@@ -423,7 +480,7 @@ export const useGameStore = create<GameState & {
     const b = state.businesses.find(b => b.id === bizId);
     if (!b || b.type !== 'store') return state;
     const data = b.data as StoreData;
-    const cost = (data.shelves + 1) * 1500;
+    const cost = BigInt(data.shelves + 1) * 1500n;
     if (data.shelves >= 20 || state.money < cost) return state;
 
     return {
@@ -499,15 +556,16 @@ export const useGameStore = create<GameState & {
   // ==========================================
   buyFactoryLine: (bizId, productId, cost) => set(state => {
     const b = state.businesses.find(b => b.id === bizId);
-    if (!b || b.type !== 'factory' || state.money < cost) return state;
+    const bigintCost = BigInt(cost);
+    if (!b || b.type !== 'factory' || state.money < bigintCost) return state;
     
-    const data = b.data as Extract<import("../types/game").BusinessData, { lines: any[] }>;
+    const data = b.data as any;
     if (data.lines.length >= 10) return state; // Max 10 lines
 
     const line = { id: Math.random().toString(36).slice(2), productId, purchasedAt: Date.now() };
 
     return {
-      money: state.money - cost,
+      money: state.money - bigintCost,
       businesses: state.businesses.map(bus => bus.id === bizId ? { ...bus, data: { ...data, lines: [...data.lines, line] } } : bus)
     };
   }),
@@ -519,19 +577,19 @@ export const useGameStore = create<GameState & {
     const b = state.businesses.find(b => b.id === bizId);
     if (!b || b.type !== 'construction') return state;
     const data = b.data as ConstructionData;
-    const cost = (data.equipmentCount + 1) * 25000;
+    const cost = BigInt(data.equipmentCount + 1) * 25000n;
     if (state.money < cost) return state;
     return { money: state.money - cost, businesses: state.businesses.map(bus => bus.id === bizId ? { ...bus, data: { ...data, equipmentCount: data.equipmentCount + 1 } } : bus) };
   }),
 
   buyConstructionResource: (bizId, type, amount, cost) => set(state => {
     const b = state.businesses.find(b => b.id === bizId);
-    if (!b || b.type !== 'construction') return state;
-    if (state.money < cost) return state;
+    const bigintCost = BigInt(cost);
+    if (!b || b.type !== 'construction' || state.money < bigintCost) return state;
     const data = b.data as ConstructionData;
     return {
-      money: state.money - cost,
-      businesses: state.businesses.map(bus => bus.id === bizId ? { ...bus, data: { ...data, resources: { ...data.resources, [type]: data.resources[type] + amount } } } : bus)
+      money: state.money - bigintCost,
+      businesses: state.businesses.map(bus => bus.id === bizId ? { ...bus, data: { ...data, resources: { ...data.resources, [type]: (data.resources as any)[type] + amount } } } : bus)
     };
   }),
 
@@ -606,7 +664,7 @@ export const useGameStore = create<GameState & {
     const b = state.businesses.find(b => b.id === bizId);
     if (!b || b.type !== 'car_dealership') return state;
     const data = b.data as CarDealershipData;
-    const cost = (data.mechanicsOwned + 1) * 15_000;
+    const cost = BigInt(data.mechanicsOwned + 1) * 15_000n;
     if (state.money < cost || data.mechanicsOwned >= data.mechanicSlots) return state;
     return { money: state.money - cost, businesses: state.businesses.map(bus => bus.id === bizId ? { ...bus, data: { ...data, mechanicsOwned: data.mechanicsOwned + 1 } } : bus) };
   }),
@@ -616,8 +674,8 @@ export const useGameStore = create<GameState & {
     if (!b || b.type !== 'car_dealership') return state;
     const data = b.data as CarDealershipData;
     // Costs $5000 to refresh market
-    if (state.money < 5000) return state;
-    return { money: state.money - 5000, businesses: state.businesses.map(bus => bus.id === bizId ? { ...bus, data: { ...data, market: generateMarketCars(), lastMarketRefreshAt: Date.now() } } : bus) };
+    if (state.money < 5000n) return state;
+    return { money: state.money - 5000n, businesses: state.businesses.map(bus => bus.id === bizId ? { ...bus, data: { ...data, market: generateMarketCars(), lastMarketRefreshAt: Date.now() } } : bus) };
   }),
 
   buyDealerCar: (bizId, marketCarId) => set(state => {
@@ -694,8 +752,8 @@ export const useGameStore = create<GameState & {
     if (!model) return state;
     
     // Calculate sell price based on un-repaired issues
-    const penalty = car.issues.reduce((sum, issue) => issue.isRepaired ? sum : sum + (issue.repairCost * 1.5), 0);
-    const sellPrice = Math.max(car.buyPrice * 0.8, model.maxSalePrice - penalty); // can lose money if sold without repair
+    const penalty = car.issues.reduce((sum, issue) => issue.isRepaired ? sum : sum + (issue.repairCost * 15n) / 10n, 0n);
+    const sellPrice = (car.buyPrice * 80n) / 100n > (model.maxSalePrice - penalty) ? (car.buyPrice * 80n) / 100n : (model.maxSalePrice - penalty);
 
     const newInv = data.inventory.map(c => c.id === invId ? { ...c, sold: true } : c);
 
@@ -797,8 +855,8 @@ export const useGameStore = create<GameState & {
   upgradeBankVault: (bizId) => set(state => {
     const b = state.businesses.find(b => b.id === bizId);
     if (!b || b.type !== 'bank') return state;
-    const data = b.data as Extract<import("../types/game").BusinessData, { vaultLevel: number }>;
-    const cost = data.vaultLevel * 10_000_000;
+    const data = b.data as any;
+    const cost = BigInt(data.vaultLevel) * 10_000_000n;
     if (state.money < cost || data.vaultLevel >= 35) return state;
     return {
       money: state.money - cost,
@@ -809,13 +867,13 @@ export const useGameStore = create<GameState & {
   collectBankVault: (bizId) => set(state => {
     const b = state.businesses.find(b => b.id === bizId);
     if (!b || b.type !== 'bank') return state;
-    const data = b.data as Extract<import("../types/game").BusinessData, { vaultValue: number, lastCollectedAt: number }>;
+    const data = b.data as any;
     const amount = data.vaultValue;
-    if (amount <= 0) return state;
+    if (amount <= 0n) return state;
     return {
       money: state.money + amount,
       totalEarned: state.totalEarned + amount,
-      businesses: state.businesses.map(bus => bus.id === bizId ? { ...bus, data: { ...data, vaultValue: 0, lastCollectedAt: Date.now() } } : bus)
+      businesses: state.businesses.map(bus => bus.id === bizId ? { ...bus, data: { ...data, vaultValue: 0n, lastCollectedAt: Date.now() } } : bus)
     };
   }),
 
@@ -842,16 +900,16 @@ export const useGameStore = create<GameState & {
   upgradeStadium: (bizId) => set(state => {
     const b = state.businesses.find(b => b.id === bizId);
     if (!b || b.type !== 'football') return state;
-    const data = b.data as Extract<import("../types/game").BusinessData, { stadiumLevel: number, ticketPrice: number }>;
+    const data = b.data as any;
     
-    const cost = data.stadiumLevel * 5_000_000;
+    const cost = BigInt(data.stadiumLevel) * 5_000_000n;
     if (state.money < cost) return state;
 
     return {
       money: state.money - cost,
       businesses: state.businesses.map(bus => bus.id === bizId ? {
         ...bus,
-        data: { ...data, stadiumLevel: data.stadiumLevel + 1, ticketPrice: data.ticketPrice + 5 }
+        data: { ...data, stadiumLevel: data.stadiumLevel + 1, ticketPrice: data.ticketPrice + 5n }
       } : bus)
     };
   }),
@@ -879,9 +937,9 @@ export const useGameStore = create<GameState & {
   upgradeRefinery: (bizId) => set(state => {
     const b = state.businesses.find(b => b.id === bizId);
     if (!b || b.type !== 'oil_gas') return state;
-    const data = b.data as Extract<import("../types/game").BusinessData, { refineryLevel: number }>;
+    const data = b.data as any;
     
-    const cost = data.refineryLevel * 50_000_000;
+    const cost = BigInt(data.refineryLevel) * 50_000_000n;
     if (state.money < cost || data.refineryLevel >= 10) return state;
 
     return {
@@ -955,7 +1013,7 @@ export const useGameStore = create<GameState & {
     if (!b || b.type !== 'space') return state;
     const data = b.data as Extract<import("../types/game").BusinessData, { satellites: number }>;
     
-    const cost = 2_500_000;
+    const cost = 2_500_000n;
     if (state.money < cost) return state;
 
     return {
@@ -1024,15 +1082,16 @@ export const useGameStore = create<GameState & {
 
   tick: () => set(state => {
     const now = Date.now();
-    const dt = now - state.lastTickAt;
+    const dt = now - (state.lastTickAt || now);
     if (dt < 500) return state; // Only process at least every 0.5s
 
-    let income = 0;
-    let expenses = 0;
+    let income = 0n;
+    let expenses = 0n;
     
     // Auto clickers
     if (state.autoClickRate > 0) {
-      income += (state.autoClickRate * state.clickValue * (1 + state.prestigeBonus)) * (dt / 1000);
+      const perSec = state.clickValue * (1n + BigInt(state.prestigeBonus));
+      income += (BigInt(state.autoClickRate) * perSec * BigInt(Math.floor(dt / 1000)));
     }
 
     const nextBusinesses = state.businesses.map(bus => {
@@ -1049,7 +1108,7 @@ export const useGameStore = create<GameState & {
           if (currentKm >= model.maxKm) {
             return { ...car, currentKm: model.maxKm, broken: true };
           }
-          income += model.incomePerHour * (dt / 3600000);
+          income += (model.incomePerHour * BigInt(dt)) / 3600000n;
           return { ...car, currentKm };
         });
         return { ...bus, data: { ...data, ownedCars: newCars } };
@@ -1061,17 +1120,17 @@ export const useGameStore = create<GameState & {
           const prod = STORE_PRODUCTS.find(p => p.id === ap.productId);
           if (prod) {
             const outOfStock = (now - ap.restockedAt) / 3600000 >= prod.stockHours;
-            if (!outOfStock) income += prod.incomePerHour * (dt / 3600000);
+            if (!outOfStock) income += (prod.incomePerHour * BigInt(dt)) / 3600000n;
           }
         });
         return bus;
       }
 
       if (bus.type === 'factory') {
-        const data = bus.data as import('../types/game').FactoryData;
-        data.lines.forEach(line => {
+        const data = bus.data as any;
+        data.lines.forEach((line: any) => {
           const prod = FACTORY_PRODUCTS.find(p => p.id === line.productId);
-          if (prod) income += prod.incomePerHour * (dt / 3600000);
+          if (prod) income += (prod.incomePerHour * BigInt(dt)) / 3600000n;
         });
         return bus;
       }
@@ -1087,21 +1146,23 @@ export const useGameStore = create<GameState & {
           if (currentKm >= model.maxKm) {
             return { ...v, currentKm: model.maxKm, broken: true };
           }
-          income += model.incomePerHour * (dt / 3600000);
+          income += (model.incomePerHour * BigInt(dt)) / 3600000n;
           return { ...v, currentKm };
         });
         return { ...bus, data: { ...data, ownedVehicles: newVehicles } };
       }
 
       if (bus.type === 'bank') {
-        const data = bus.data as import('../types/game').BankData;
+        const data = bus.data as any;
         // The bank vault fills passively based on deposit/loan rate spread
         const spread = data.loanRate - data.depositRate;
-        const vaultCapacity = data.vaultLevel * 50_000_000;
+        // Vault capacity: Lvl 1: 50M, Lvl 35: ~7.7B
+        const vaultCapacity = BigInt(Math.floor(50_000_000 * Math.pow(1.156, data.vaultLevel - 1)));
         if (data.vaultValue < vaultCapacity) {
-          // Base fill: spread * 100k per hour. Higher spread = faster fill
-          const vaultFill = Math.max(0, spread * 100_000) * (dt / 3600000);
-          const newVault = Math.min(vaultCapacity, data.vaultValue + vaultFill);
+          // Fill rate influenced by spread. Optimal spread (3.30%) = 10% capacity per hr
+          const fillRatePerHr = (vaultCapacity * BigInt(Math.floor(Math.max(0, spread / 3.30) * 100))) / 1000n; // 10% = 100/1000
+          const vaultFill = (fillRatePerHr * BigInt(dt)) / 3600000n;
+          const newVault = data.vaultValue + vaultFill > vaultCapacity ? vaultCapacity : data.vaultValue + vaultFill;
           return { ...bus, data: { ...data, vaultValue: newVault } };
         }
         return bus;
@@ -1109,59 +1170,57 @@ export const useGameStore = create<GameState & {
 
       if (bus.type === 'it_company') {
         const data = bus.data as ITData;
-        // Deduct employee salaries each hr
         const totalSalaryPerHr = data.employees.reduce((sum, emp) => {
           const role = EMPLOYEE_TYPES.find(r => r.id === emp.roleId);
-          return sum + (role?.salary ?? 0);
-        }, 0);
-        expenses += totalSalaryPerHr * (dt / 3600000);
+          return sum + (role?.salary ?? 0n);
+        }, 0n);
+        expenses += (totalSalaryPerHr * BigInt(dt)) / 3600000n;
         return bus;
       }
 
       if (bus.type === 'football') {
-        const data = bus.data as import('../types/game').FootballData;
-        // Passive ticket income from stadium
-        income += (data.stadiumLevel * 250 * data.ticketPrice) * (dt / 3600000);
-        // Player salary drain
-        const playerSalaries = data.players.reduce((sum, playerId) => {
+        const data = bus.data as any;
+        income += (BigInt(data.stadiumLevel) * 250n * data.ticketPrice * BigInt(dt)) / 3600000n;
+        const playerSalaries = data.players.reduce((sum: bigint, playerId: string) => {
           const p = FOOTBALL_PLAYER_TYPES.find(fp => fp.id === playerId);
-          return sum + (p?.salary ?? 0);
-        }, 0);
-        expenses += playerSalaries * (dt / 3600000);
+          return sum + (p?.salary ?? 0n);
+        }, 0n);
+        expenses += (playerSalaries * BigInt(dt)) / 3600000n;
         return bus;
       }
 
       if (bus.type === 'oil_gas') {
-        const data = bus.data as import('../types/game').OilData;
+        const data = bus.data as any;
         let totalBarrelsRate = 0;
-        data.ownedWells.forEach(wellId => {
+        data.ownedWells.forEach((wellId: string) => {
           const w = OIL_WELL_TYPES.find(ww => ww.id === wellId);
           if (w) totalBarrelsRate += w.barrelsPerDay;
         });
-        const barrelPrice = 80 + (data.refineryLevel * 10);
-        income += ((totalBarrelsRate / 24) * barrelPrice) * (dt / 3600000);
+        const barrelPrice = 80n + BigInt(data.refineryLevel * 10);
+        const dailyBarrels = BigInt(totalBarrelsRate);
+        income += (dailyBarrels * barrelPrice * BigInt(dt)) / (24n * 3600000n);
         return bus;
       }
 
       if (bus.type === 'clothing') {
-        const data = bus.data as import('../types/game').ClothingData;
-        let baseIncome = 0;
-        data.ownedCollections.forEach(cId => {
+        const data = bus.data as any;
+        let baseIncome = 0n;
+        data.ownedCollections.forEach((cId: string) => {
           const c = CLOTHING_COLLECTIONS.find(cc => cc.id === cId);
           if (c) baseIncome += c.incomePerHour;
         });
-        let totalMultiplier = 1;
-        data.ownedStores.forEach(sId => {
+        let totalMultiplier = 1n;
+        data.ownedStores.forEach((sId: string) => {
           const s = CLOTHING_STORES_DATA.find(ss => ss.id === sId);
-          if (s) totalMultiplier += s.incomeMultiplier;
+          if (s) totalMultiplier += BigInt(s.incomeMultiplier);
         });
-        income += (baseIncome * totalMultiplier) * (dt / 3600000);
+        income += (baseIncome * totalMultiplier * BigInt(dt)) / 3600000n;
         return bus;
       }
 
       if (bus.type === 'space') {
-        const data = bus.data as import('../types/game').SpaceData;
-        income += (data.satellites * 150_000) * (dt / 3600000);
+        const data = bus.data as any;
+        income += (BigInt(data.satellites) * 150_000n * BigInt(dt)) / 3600000n;
         return bus;
       }
 
@@ -1177,83 +1236,209 @@ export const useGameStore = create<GameState & {
       return bus;
     });
 
-    // Property rental income
+    // Property rental income (Adds to pendingRent)
     const nextProperties = state.properties.map(prop => {
       if (prop.owned && prop.rentalActive && prop.tenants.length > 0) {
         // Remove expired tenants
         const activeTenants = prop.tenants.filter(t => now < t.leavesAt);
-        const rentIncome = activeTenants.reduce((s, t) => s + t.rentPerHour, 0) * (dt / 3600000);
-        income += rentIncome;
-        if (activeTenants.length !== prop.tenants.length) {
-          return { ...prop, tenants: activeTenants, rentalActive: activeTenants.length > 0 };
-        }
+        const rentPerHourTotal = activeTenants.reduce((s, t) => s + t.rentPerHour, 0n);
+        const rentIncome = (rentPerHourTotal * BigInt(dt)) / 3600000n;
+        return { 
+          ...prop, 
+          tenants: activeTenants, 
+          rentalActive: activeTenants.length > 0,
+          pendingRent: prop.pendingRent + rentIncome
+        };
       }
       return prop;
     });
 
     // 3-hour Dividend Payout
-    let dividendPayout = 0;
+    let dividendPayout = 0n;
     let newLastDividendAt = state.lastDividendAt;
     const THREE_HOURS = 3 * 60 * 60 * 1000;
     if (now - state.lastDividendAt >= THREE_HOURS) {
       state.stocks.forEach(s => {
-        if (s.sharesOwned > 0) {
-          // dividendPerShare is annual yield %, so per 3h payout = (price * yield/100) / (365*8) per share
-          dividendPayout += s.sharesOwned * s.currentPrice * (s.dividendPerShare / 100) / (365 * 8);
+        if (s.sharesOwned > 0n) {
+          // dividendPerShare is yield % (e.g. 5 means 5%), payout = (currentPrice * sharesOwned * (yield/100)) / (365*8)
+          dividendPayout += (s.sharesOwned * s.currentPrice * s.dividendPerShare) / (100n * 365n * 8n);
         }
       });
       newLastDividendAt = now;
       income += dividendPayout;
     }
 
-    // Recalculate incomePerHour based on current dt earnings (annualise the dt window)
-    const newIncomePerHour = income > 0 ? (income / (dt / 3600000)) : state.incomePerHour * 0.99;
+    // Recalculate incomePerHour based on current dt earnings
+    const newIncomePerHour = income > 0n ? (income * 3600000n) / BigInt(dt) : (state.incomePerHour * 99n) / 100n;
 
     // Recalculate netWorth: cash + business assets + stock holdings + crypto + property + luxury
-    const stockValue = state.stocks.reduce((s, st) => s + st.sharesOwned * st.currentPrice, 0);
-    const cryptoValue = state.crypto.reduce((s, c) => s + c.amountOwned * c.currentPrice, 0);
-    const propertyValue = state.properties.reduce((s, p) => p.owned ? s + p.basePurchaseCost : s, 0);
-    const luxuryValue = state.luxuryItems.reduce((s, l) => l.owned ? s + l.baseCost : s, 0);
+    const stockValue = state.stocks.reduce((s, st) => s + st.sharesOwned * st.currentPrice, 0n);
+    const cryptoValue = state.crypto.reduce((s, c) => s + c.amountOwned * c.currentPrice, 0n);
+    const propertyValue = state.properties.reduce((s, p) => p.owned ? s + p.basePurchaseCost : s, 0n);
+    const luxuryValue = state.luxuryItems.reduce((s, l) => l.owned ? s + l.baseCost : s, 0n);
     const newNetWorth = (state.money + income - expenses) + stockValue + cryptoValue + propertyValue + luxuryValue;
 
-    return {
-      money: Math.max(0, state.money + income - expenses),
-      totalEarned: state.totalEarned + Math.max(0, income),
-      netWorth: Math.max(0, newNetWorth),
-      incomePerHour: Math.max(0, newIncomePerHour),
+    const newState = {
+      money: state.money + income - expenses > 0n ? state.money + income - expenses : 0n,
+      totalEarned: state.totalEarned + (income > 0n ? income : 0n),
+      netWorth: newNetWorth > 0n ? newNetWorth : 0n,
+      incomePerHour: newIncomePerHour > 0n ? newIncomePerHour : 0n,
       businesses: nextBusinesses,
       properties: nextProperties,
       lastTickAt: now,
       lastDividendAt: newLastDividendAt,
       totalPlayTimeSeconds: state.totalPlayTimeSeconds + (dt / 1000),
     };
+
+    // Auto-check rank
+    setTimeout(() => get().checkRankUnlock(), 0);
+
+    return newState;
   }),
 
   updateMarketPrices: () => set(state => {
     const nextStocks = state.stocks.map(s => {
       const change = (Math.random() - 0.48) * 0.025; // slight upward bias
-      const newPrice = Math.max(0.01, s.currentPrice * (1 + change));
+      const multiplierBasis = 1000n + BigInt(Math.floor(change * 1000));
+      const newPrice = (s.currentPrice * multiplierBasis) / 1000n;
       return {
         ...s,
         previousPrice: s.currentPrice,
-        currentPrice: newPrice,
+        currentPrice: newPrice > 1n ? newPrice : 1n,
         priceHistory: [...s.priceHistory.slice(-29), newPrice]
       };
     });
     const nextCrypto = state.crypto.map(c => {
-      // Respect floor/ceiling if set
       const change = (Math.random() - 0.5) * 0.15;
-      let newPrice = Math.max(0.0001, c.currentPrice * (1 + change));
-      if (c.priceFloor && newPrice < c.priceFloor) newPrice = c.priceFloor * (1 + Math.random() * 0.02);
-      if (c.priceCeiling && newPrice > c.priceCeiling) newPrice = c.priceCeiling * (1 - Math.random() * 0.02);
+      const multiplierBasis = 1000n + BigInt(Math.floor(change * 1000));
+      let newPrice = (c.currentPrice * multiplierBasis) / 1000n;
+      
+      const floor = c.priceFloor || 1n;
+      const ceiling = c.priceCeiling || 1_000_000_000_000n;
+
+      if (newPrice < floor) newPrice = floor + BigInt(Math.floor(Math.random() * 1000));
+      if (newPrice > ceiling) newPrice = ceiling - BigInt(Math.floor(Math.random() * 1000));
+      
       return {
         ...c,
         previousPrice: c.currentPrice,
-        currentPrice: newPrice,
+        currentPrice: newPrice > 0n ? newPrice : 1n,
         priceHistory: [...c.priceHistory.slice(-29), newPrice]
       };
     });
     return { stocks: nextStocks, crypto: nextCrypto };
+  }),
+
+  checkRankUnlock: () => set(state => {
+    const nextRank = RANKS.find((r: Rank) => r.level === state.currentRankLevel + 1);
+    if (!nextRank) return state;
+
+    if (state.netWorth >= nextRank.reqNetWorth && state.incomePerHour >= nextRank.reqHourlyIncome) {
+      // Unlock new rank!
+      const notification = {
+        id: Math.random().toString(36).slice(2),
+        message: `Rank Unlocked: ${nextRank.name}!`,
+        emoji: nextRank.icon,
+        timestamp: Date.now(),
+      };
+      return {
+        currentRankLevel: nextRank.level,
+        notifications: [notification, ...state.notifications].slice(0, 50)
+      };
+    }
+    return state;
+  }),
+
+  performMerger: (mergerId) => set(state => {
+    const merger = MERGERS.find((m: BusinessMerger) => m.id === mergerId);
+    if (!merger || state.money < merger.requiredCash) return state;
+
+    // Check components
+    const ownedBusinesses = state.businesses.filter(b => b.owned);
+    const componentIdsToRemove: string[] = [];
+
+    for (const req of merger.requiredComponents) {
+      let found = false;
+      if (req.type === 'store') {
+        const store = ownedBusinesses.find(b => b.type === 'store' && (b.data as StoreData).shelves >= (req.level || 0));
+        if (store) { found = true; componentIdsToRemove.push(store.id); }
+      } else if (req.type === 'shipping') {
+        const ship = ownedBusinesses.find(b => b.type === 'shipping' && (b.data as ShippingData).ownedVehicles.length >= (req.minTrucks || 0));
+        if (ship) { found = true; componentIdsToRemove.push(ship.id); }
+      } else if (req.type === 'factory') {
+        const fact = ownedBusinesses.find(b => b.type === 'factory' && (b.data as any).lines.length >= (req.level || 0));
+        if (fact) { found = true; componentIdsToRemove.push(fact.id); }
+      } else if (req.type === 'bank') {
+        const bank = ownedBusinesses.find(b => b.type === 'bank' && (b.data as any).vaultLevel >= (req.level || 0));
+        if (bank) { found = true; componentIdsToRemove.push(bank.id); }
+      } else if (req.type === 'merger') {
+        const m = ownedBusinesses.find(b => b.type === 'merger' && ((b.data as any).income || 0n) >= (req.minIncome || 0n));
+        if (m) { found = true; componentIdsToRemove.push(m.id); }
+      }
+      if (!found) return state; // Missing component
+    }
+
+    // Special case: Investment Firm needs 40B in stocks (we check this manually for now)
+    if (mergerId === 'm_investment') {
+      const stockValue = state.stocks.reduce((s, st) => s + st.sharesOwned * st.currentPrice, 0n);
+      if (stockValue < 40_000_000_000n) return state;
+    }
+
+    // Perform merger
+    const newBusiness: Business = {
+      id: "merger_" + Math.random().toString(36).slice(2),
+      type: 'merger',
+      name: merger.resultingBusinessName,
+      unlockCost: 0n,
+      owned: true,
+      color: "#f5c518",
+      icon: "🏢",
+      description: `Merged from ${merger.name} project.`,
+      image: { id: "merger_generic", description: "Merged corporate entity" },
+      data: { mergedBy: componentIdsToRemove, income: merger.resultingIncome }
+    };
+
+    return {
+      money: state.money - merger.requiredCash,
+      businesses: [
+        ...state.businesses.filter(b => !componentIdsToRemove.includes(b.id)),
+        newBusiness
+      ]
+    };
+  }),
+
+  claimAllProperties: () => set(state => {
+    let totalClaimed = 0n;
+    const nextProperties = state.properties.map(prop => {
+      if (prop.pendingRent > 0n) {
+        totalClaimed += prop.pendingRent;
+        return { ...prop, pendingRent: 0n };
+      }
+      return prop;
+    });
+    if (totalClaimed === 0n) return state;
+    return {
+      money: state.money + totalClaimed,
+      totalEarned: state.totalEarned + totalClaimed,
+      properties: nextProperties
+    };
+  }),
+
+  prestige: () => set(state => {
+    if (state.totalEarned < 1_000_000_000n) return state;
+
+    return {
+      ...state,
+      ...initialState,
+      uid: state.uid,
+      prestigeLevel: state.prestigeLevel + 1,
+      prestigeBonus: state.prestigeBonus + 0.1, // +10%
+      achievements: state.achievements, // keep achievements
+      totalClicks: state.totalClicks, // keep clicks
+      totalPlayTimeSeconds: state.totalPlayTimeSeconds, // keep time
+      lastSavedAt: Date.now(),
+      lastTickAt: Date.now(),
+    };
   }),
 
 }));

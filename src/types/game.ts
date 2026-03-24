@@ -13,7 +13,7 @@ export interface ImagePlaceholder {
 // =============================================
 export interface TaxiParkingSlot {
   id: number;
-  cost: number;
+  cost: bigint;
   unlocked: boolean;
 }
 
@@ -28,8 +28,8 @@ export interface TaxiCar {
 export interface TaxiCarModel {
   id: string;
   name: string;
-  cost: number;
-  incomePerHour: number;
+  cost: bigint;
+  incomePerHour: bigint;
   maxKm: number; // km until breakdown
   kmPerHour: number; // how fast km accumulate
   image: ImagePlaceholder;
@@ -46,9 +46,9 @@ export interface TaxiData {
 export interface StoreProduct {
   id: string;
   name: string;
-  shelfCost: number;    // cost to set up the shelf slot
-  restockCost: number;  // cost to restock when empty
-  incomePerHour: number;
+  shelfCost: bigint;    // cost to set up the shelf slot
+  restockCost: bigint;  // cost to restock when empty
+  incomePerHour: bigint;
   stockHours: number;   // how many hours stock lasts before needing restock
   image: ImagePlaceholder;
 }
@@ -69,8 +69,8 @@ export interface StoreData {
 export interface FactoryProduct {
   id: string;
   name: string;
-  lineCost: number;
-  incomePerHour: number;
+  lineCost: bigint;
+  incomePerHour: bigint;
   image: ImagePlaceholder;
 }
 
@@ -90,8 +90,8 @@ export interface FactoryData {
 export interface ShippingVehicleModel {
   id: string;
   name: string;
-  cost: number;
-  incomePerHour: number;
+  cost: bigint;
+  incomePerHour: bigint;
   maxKm: number;
   kmPerHour: number;
   image: ImagePlaceholder;
@@ -118,7 +118,7 @@ export interface ConstructionProject {
   name: string;
   description: string;
   durationSeconds: number;
-  reward: number;
+  reward: bigint;
   requiredEquipment: number;
   requiredBuilders: number;
   requiredConcrete: number; // m3
@@ -153,18 +153,18 @@ export type CarIssueType = 'engine' | 'transmission' | 'suspension' | 'body' | '
 export interface DealerCarModel {
   id: string;
   name: string;
-  baseBuyCost: number;
-  maxSalePrice: number;
+  baseBuyCost: bigint;
+  maxSalePrice: bigint;
   image: ImagePlaceholder;
 }
 
 export interface DamagedUsedCar {
   id: string;
   modelId: string;
-  buyPrice: number;
+  buyPrice: bigint;
   issues: {
     type: CarIssueType;
-    repairCost: number;
+    repairCost: bigint;
     repairTimeSeconds: number;
     isRepaired: boolean;
   }[];
@@ -173,7 +173,7 @@ export interface DamagedUsedCar {
 export interface DealerOwnedCar {
   id: string;
   modelId: string;
-  buyPrice: number;
+  buyPrice: bigint;
   purchasedAt: number;
   issues: DamagedUsedCar["issues"];
   activeRepairIndex: number | null; // which issue is currently being repaired
@@ -193,13 +193,13 @@ export interface CarDealershipData {
 // =============================================
 // IT COMPANY
 // =============================================
-export type EmployeeRole = 'junior' | 'mid' | 'senior' | 'designer' | 'tester';
+export type EmployeeRole = 'junior' | 'mid' | 'senior' | 'designer' | 'tester' | 'team_leader';
 
 export interface EmployeeType {
   id: EmployeeRole;
   name: string;
-  salary: number; // cost/hr (deducted from income)
-  hireBonus: number; // one-time hire cost
+  salary: bigint; // cost/hr (deducted from income)
+  hireBonus: bigint; // one-time hire cost
   projectSpeed: number; // multiplier
   image: ImagePlaceholder;
 }
@@ -215,7 +215,7 @@ export interface ITProject {
   name: string;
   description: string;
   baseDurationSeconds: number;
-  reward: number;
+  reward: bigint;
   minEmployees: number;
   image: ImagePlaceholder;
 }
@@ -241,7 +241,7 @@ export interface BankData {
   vaultLevel: number;    // 1–35
   depositRate: number;   // 1–10% slider
   loanRate: number;      // 5–25% slider
-  vaultValue: number;    // current accumulated value
+  vaultValue: bigint;    // current accumulated value
   lastCollectedAt: number;
 }
 
@@ -252,8 +252,8 @@ export interface FootballPlayerType {
   id: string;
   name: string;
   position: string;
-  cost: number;
-  salary: number;
+  cost: bigint;
+  salary: bigint;
   skill: number; // 1-100
   image: ImagePlaceholder;
 }
@@ -261,7 +261,7 @@ export interface FootballPlayerType {
 export interface FootballData {
   players: string[]; // owned player type IDs
   stadiumLevel: number;
-  ticketPrice: number;
+  ticketPrice: bigint;
   lastMatchAt: number;
   wins: number;
   losses: number;
@@ -274,7 +274,7 @@ export interface OilWellType {
   id: string;
   name: string;
   location: string;
-  cost: number;
+  cost: bigint;
   barrelsPerDay: number;
   image: ImagePlaceholder;
 }
@@ -290,15 +290,15 @@ export interface OilData {
 export interface ClothingCollection {
   id: string;
   name: string;
-  designCost: number;
-  incomePerHour: number;
+  designCost: bigint;
+  incomePerHour: bigint;
   image: ImagePlaceholder;
 }
 
 export interface ClothingStore {
   id: string;
   city: string;
-  cost: number;
+  cost: bigint;
   incomeMultiplier: number;
 }
 
@@ -313,7 +313,7 @@ export interface ClothingData {
 export interface RocketType {
   id: string;
   name: string;
-  cost: number;
+  cost: bigint;
   image: ImagePlaceholder;
 }
 
@@ -321,7 +321,7 @@ export interface SpaceMission {
   id: string;
   name: string;
   durationSeconds: number;
-  reward: number;
+  reward: bigint;
   requiredRocket: string;
   image: ImagePlaceholder;
 }
@@ -355,7 +355,8 @@ export type BusinessType =
   | 'football'
   | 'oil_gas'
   | 'clothing'
-  | 'space';
+  | 'space'
+  | 'merger'; // For holding companies, etc.
 
 export type BusinessData =
   | TaxiData
@@ -369,13 +370,14 @@ export type BusinessData =
   | FootballData
   | OilData
   | ClothingData
-  | SpaceData;
+  | SpaceData
+  | { mergedBy: string[], income: bigint }; // Generic data for merged entities
 
 export interface Business {
   id: string;
   type: BusinessType;
   name: string;
-  unlockCost: number;
+  unlockCost: bigint;
   owned: boolean;
   color: string;
   icon: string;
@@ -385,12 +387,41 @@ export interface Business {
 }
 
 // =============================================
+// RANKS / INSIGNIA
+// =============================================
+export interface Rank {
+  level: number;
+  name: string;
+  reqNetWorth: bigint;
+  reqHourlyIncome: bigint;
+  icon: string;
+}
+
+// =============================================
+// MERGERS
+// =============================================
+export interface BusinessMerger {
+  id: string;
+  name: string;
+  requiredComponents: {
+    type: BusinessType;
+    count?: number;
+    level?: number;
+    minIncome?: bigint;
+    minTrucks?: number; // Specific for Shipping
+  }[];
+  requiredCash: bigint;
+  resultingBusinessName: string;
+  resultingIncome: bigint;
+}
+
+// =============================================
 // PROPERTY RENTAL
 // =============================================
 export interface Tenant {
   id: string;
   name: string;
-  rentPerHour: number;
+  rentPerHour: bigint;
   movedInAt: number;
   leavesAt: number; // timestamp when the lease ends
 }
@@ -410,15 +441,16 @@ export interface Property {
   city: string;
   country: string;
   flag: string;
-  basePurchaseCost: number;
-  baseIncomePerHour: number;
+  basePurchaseCost: bigint;
+  baseIncomePerHour: bigint;
   owned: boolean;
   improvements: PropertyImprovement[];
   image: ImagePlaceholder;
   // Rental system
   rentalActive: boolean;
-  rentPrice: number;          // price set by player
+  rentPrice: bigint;          // price set by player
   tenants: Tenant[];
+  pendingRent: bigint;
 }
 
 // =============================================
@@ -428,11 +460,11 @@ export interface Stock {
   ticker: string;
   name: string;
   sector: string;
-  currentPrice: number;
-  previousPrice: number;
-  priceHistory: number[];
-  sharesOwned: number;
-  dividendPerShare: number;
+  currentPrice: bigint;
+  previousPrice: bigint;
+  priceHistory: bigint[];
+  sharesOwned: bigint;
+  dividendPerShare: bigint;
   color: string;
 }
 
@@ -446,16 +478,16 @@ export interface CryptoCoin {
   name: string;
   symbol: string;
   icon: string;
-  currentPrice: number;
-  previousPrice: number;
-  priceHistory: number[];
-  amountOwned: number;
+  currentPrice: bigint;
+  previousPrice: bigint;
+  priceHistory: bigint[];
+  amountOwned: bigint;
   volatility: Volatility;
   color: string;
-  priceFloor?: number;    // min price (for EXXES)
-  priceCeiling?: number; // max price (for EXXES)
+  priceFloor?: bigint;    // min price (for EXXES)
+  priceCeiling?: bigint; // max price (for EXXES)
   nftOnly?: boolean;     // ETH/TRB - only usable for NFT luxury purchases
-  maxTxAmount?: number;  // max $ per transaction (for EXXES: 30 trillion)
+  maxTxAmount?: bigint;  // max $ per transaction (for EXXES: 30 trillion)
 }
 
 // =============================================
@@ -474,7 +506,7 @@ export interface LuxuryModifier {
 export interface LuxuryLocation {
   id: string;
   name: string;
-  cost: number;
+  cost: bigint;
   image: ImagePlaceholder;
 }
 
@@ -483,11 +515,11 @@ export interface LuxuryItem {
   name: string;
   description: string;
   category: LuxuryCategory;
-  baseCost: number;
+  baseCost: bigint;
   costCurrency: 'money' | 'crypto';
   cryptoCoinId?: string;
-  cryptoAmount?: number;
-  baseNetWorthBoost: number;
+  cryptoAmount?: bigint;
+  baseNetWorthBoost: bigint;
   owned: boolean;
   icon: string;
   image: ImagePlaceholder;
@@ -505,9 +537,9 @@ export interface Achievement {
   name: string;
   description: string;
   icon: string;
-  target: number;
+  target: bigint;
   type: 'money' | 'netWorth' | 'businesses' | 'clicks' | 'properties';
-  reward: number;
+  reward: bigint;
   completed: boolean;
   claimed: boolean;
 }
@@ -518,10 +550,10 @@ export interface Achievement {
 export interface DailyTask {
   id: string;
   description: string;
-  target: number;
+  target: bigint;
   progress: number;
   type: 'click' | 'earn' | 'invest';
-  reward: number;
+  reward: bigint;
   completed: boolean;
   claimed: boolean;
 }
@@ -533,7 +565,7 @@ export interface ClickUpgrade {
   id: string;
   name: string;
   description: string;
-  cost: number;
+  cost: bigint;
   effectType: 'add_click' | 'mult_click' | 'add_auto';
   value: number;
   owned?: boolean;
@@ -558,10 +590,10 @@ export interface GameNotification {
 // =============================================
 export interface GameState {
   // Core economy
-  money: number;
-  totalEarned: number;
-  netWorth: number;
-  incomePerHour: number;
+  money: bigint;
+  totalEarned: bigint;
+  netWorth: bigint;
+  incomePerHour: bigint;
 
   // Businesses
   businesses: Business[];
@@ -577,7 +609,7 @@ export interface GameState {
   luxuryItems: LuxuryItem[];
 
   // Clicker
-  clickValue: number;
+  clickValue: bigint;
   totalClicks: number;
   clickUpgrades: string[];
   autoClickRate: number;
@@ -595,6 +627,10 @@ export interface GameState {
   lastSavedAt: number;
   lastTickAt: number;
   lastDividendAt: number; // timestamp of last 3-hour dividend payout
+
+  // Progress
+  currentRankLevel: number;
+  unlockedMergers: string[]; // ids of discovered mergers
 
   // UI
   notifications: GameNotification[];

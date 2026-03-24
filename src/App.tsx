@@ -4,12 +4,12 @@ import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import { useGameStore } from "./store/gameStore";
 import Layout from "./components/Layout";
 import AuthPage from "./pages/AuthPage";
-import DashboardPage from "./pages/DashboardPage";
 import BusinessesPage from "./pages/BusinessesPage";
 import PropertiesPage from "./pages/PropertiesPage";
 import InvestmentsPage from "./pages/InvestmentsPage";
-import LuxuryPage from "./pages/LuxuryPage";
+import CryptoPage from "./pages/CryptoPage";
 import ProfilePage from "./pages/ProfilePage";
+import { MonopolyAnimation } from "./components/MonopolyAnimation";
 import "./index.css";
 
 function GameLoader() {
@@ -43,14 +43,15 @@ function ProtectedApp() {
 
   return (
     <Layout>
+      <MonopolyAnimation />
       <Routes>
-        <Route path="/" element={<DashboardPage />} />
         <Route path="/businesses" element={<BusinessesPage />} />
         <Route path="/properties" element={<PropertiesPage />} />
         <Route path="/investments" element={<InvestmentsPage />} />
-        <Route path="/luxury" element={<LuxuryPage />} />
+        <Route path="/crypto" element={<CryptoPage />} />
         <Route path="/profile" element={<ProfilePage />} />
-        <Route path="*" element={<Navigate to="/" replace />} />
+        <Route path="/" element={<Navigate to="/businesses" replace />} />
+        <Route path="*" element={<Navigate to="/businesses" replace />} />
       </Routes>
     </Layout>
   );

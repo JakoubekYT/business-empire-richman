@@ -37,32 +37,32 @@ export function ConstructionPanel({ business }: { business: Business }) {
           </div>
           <button
             onClick={() => buyConstructionEquipment(business.id)}
-            disabled={money < (data.equipmentCount + 1) * 25000}
+            disabled={money < (BigInt(data.equipmentCount) + 1n) * 25000n}
             className="w-full mt-3 py-1.5 bg-orange-600 hover:bg-orange-500 disabled:bg-slate-700 disabled:text-slate-500 text-white rounded text-xs transition-colors"
           >
-            Buy +1 ({formatMoney((data.equipmentCount + 1) * 25000)})
+            Buy +1 ({formatMoney((BigInt(data.equipmentCount) + 1n) * 25000n)})
           </button>
         </div>
 
         <div className="bg-slate-800/50 p-4 rounded-xl border border-slate-700 flex flex-col">
           <p className="text-slate-400 text-sm">Builders</p>
           <p className="text-xl font-bold text-white flex-1 mt-1">{data.resources.builders}</p>
-          <button onClick={() => handleBuyResource('builders', 10, 5000)} disabled={money < 5000} className="w-full py-1.5 mt-2 bg-slate-700 hover:bg-slate-600 disabled:opacity-50 text-white rounded text-xs transition-colors">Buy 10 ($5K)</button>
+          <button onClick={() => handleBuyResource('builders', 10, 5000)} disabled={money < 5000n} className="w-full py-1.5 mt-2 bg-slate-700 hover:bg-slate-600 disabled:opacity-50 text-white rounded text-xs transition-colors">Buy 10 ($5K)</button>
         </div>
         <div className="bg-slate-800/50 p-4 rounded-xl border border-slate-700 flex flex-col">
           <p className="text-slate-400 text-sm">Concrete <span className="text-xs font-normal">tons</span></p>
           <p className="text-xl font-bold text-white flex-1 mt-1">{data.resources.concrete}</p>
-          <button onClick={() => handleBuyResource('concrete', 100, 2000)} disabled={money < 2000} className="w-full py-1.5 mt-2 bg-slate-700 hover:bg-slate-600 disabled:opacity-50 text-white rounded text-xs transition-colors">Buy 100 ($2K)</button>
+          <button onClick={() => handleBuyResource('concrete', 100, 2000)} disabled={money < 2000n} className="w-full py-1.5 mt-2 bg-slate-700 hover:bg-slate-600 disabled:opacity-50 text-white rounded text-xs transition-colors">Buy 100 ($2K)</button>
         </div>
         <div className="bg-slate-800/50 p-4 rounded-xl border border-slate-700 flex flex-col">
           <p className="text-slate-400 text-sm">Wood <span className="text-xs font-normal">m3</span></p>
           <p className="text-xl font-bold text-white flex-1 mt-1">{data.resources.wood}</p>
-          <button onClick={() => handleBuyResource('wood', 100, 1500)} disabled={money < 1500} className="w-full py-1.5 mt-2 bg-slate-700 hover:bg-slate-600 disabled:opacity-50 text-white rounded text-xs transition-colors">Buy 100 ($1.5K)</button>
+          <button onClick={() => handleBuyResource('wood', 100, 1500)} disabled={money < 1500n} className="w-full py-1.5 mt-2 bg-slate-700 hover:bg-slate-600 disabled:opacity-50 text-white rounded text-xs transition-colors">Buy 100 ($1.5K)</button>
         </div>
         <div className="bg-slate-800/50 p-4 rounded-xl border border-slate-700 flex flex-col">
           <p className="text-slate-400 text-sm">Metal <span className="text-xs font-normal">t</span></p>
           <p className="text-xl font-bold text-white flex-1 mt-1">{data.resources.metal}</p>
-          <button onClick={() => handleBuyResource('metal', 50, 4000)} disabled={money < 4000} className="w-full py-1.5 mt-2 bg-slate-700 hover:bg-slate-600 disabled:opacity-50 text-white rounded text-xs transition-colors">Buy 50 ($4K)</button>
+          <button onClick={() => handleBuyResource('metal', 50, 4000)} disabled={money < 4000n} className="w-full py-1.5 mt-2 bg-slate-700 hover:bg-slate-600 disabled:opacity-50 text-white rounded text-xs transition-colors">Buy 50 ($4K)</button>
         </div>
       </div>
 
