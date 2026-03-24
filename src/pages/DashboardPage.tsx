@@ -8,7 +8,7 @@ interface ClickParticle {
   id: number;
   x: number;
   y: number;
-  value: number;
+  value: bigint;
 }
 
 export default function DashboardPage() {
@@ -106,7 +106,7 @@ export default function DashboardPage() {
               animation: "slideInUp 0.8s ease forwards",
               opacity: 0,
             }}>
-              +${p.value}
+              +{formatMoney(p.value)}
             </div>
           ))}
         </div>
@@ -210,10 +210,10 @@ export default function DashboardPage() {
               <div>
                 <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: "var(--text-muted)", marginBottom: 4 }}>
                   <span>{formatMoney(t.progress)} / {formatMoney(t.target)}</span>
-                  <span>{Math.min(100, Math.round((t.progress / t.target) * 100))}%</span>
+                  <span>{t.target > 0n ? Number(BigInt(t.progress) * 100n / t.target) : 0}%</span>
                 </div>
                 <div className="progress-bar">
-                  <div className="progress-fill green" style={{ width: `${Math.min(100, (t.progress / t.target) * 100)}%` }} />
+                  <div className="progress-fill green" style={{ width: `${t.target > 0n ? Number(BigInt(t.progress) * 100n / t.target) : 0}%` }} />
                 </div>
               </div>
             )}

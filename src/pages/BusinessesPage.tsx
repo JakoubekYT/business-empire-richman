@@ -8,7 +8,7 @@ interface ClickParticle {
   id: number;
   x: number;
   y: number;
-  value: number;
+  value: bigint;
 }
 
 function BusinessCard({ business, onClick }: { business: Business, onClick?: () => void }) {
@@ -76,7 +76,7 @@ function BusinessCard({ business, onClick }: { business: Business, onClick?: () 
             onClick={(e) => { e.stopPropagation(); unlockBusiness(business.id); }}
             disabled={!canAffordUnlock}
           >
-            {business.unlockCost === 0 ? "🚀 Start Free!" : `🔓 ${formatMoney(business.unlockCost)}`}
+            {business.unlockCost === 0n ? "🚀 Start Free!" : `🔓 ${formatMoney(business.unlockCost)}`}
           </button>
         </div>
       )}
@@ -162,7 +162,7 @@ export default function BusinessesPage() {
               animation: "slideInUp 0.8s ease forwards",
               zIndex: 10
             }}>
-              +${p.value}
+              +{formatMoney(p.value)}
             </div>
           ))}
         </div>

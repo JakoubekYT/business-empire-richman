@@ -116,7 +116,7 @@ export const useGameStore = create<GameState & {
   restockProduct: (businessId: string, activeProductIndex: number) => void;
 
   // FACTORY
-  buyFactoryLine: (businessId: string, productId: string, cost: number) => void;
+  buyFactoryLine: (businessId: string, productId: string, cost: number | bigint) => void;
 
   // SHIPPING
   buyShippingSlots: (businessId: string, packageIndex: number) => void;
@@ -125,7 +125,7 @@ export const useGameStore = create<GameState & {
 
   // CONSTRUCTION
   buyConstructionEquipment: (businessId: string) => void;
-  buyConstructionResource: (businessId: string, type: 'builders' | 'concrete' | 'wood' | 'metal', amount: number, cost: number) => void;
+  buyConstructionResource: (businessId: string, type: 'builders' | 'concrete' | 'wood' | 'metal', amount: number | bigint, cost: number | bigint) => void;
   startConstructionProject: (businessId: string, projectId: string) => void;
   collectConstructionProject: (businessId: string, activeProjectId: string) => void;
 
@@ -589,7 +589,7 @@ export const useGameStore = create<GameState & {
     const data = b.data as ConstructionData;
     return {
       money: state.money - bigintCost,
-      businesses: state.businesses.map(bus => bus.id === bizId ? { ...bus, data: { ...data, resources: { ...data.resources, [type]: (data.resources as any)[type] + amount } } } : bus)
+      businesses: state.businesses.map(bus => bus.id === bizId ? { ...bus, data: { ...data, resources: { ...data.resources, [type]: (data.resources as any)[type] + Number(amount) } } } : bus)
     };
   }),
 

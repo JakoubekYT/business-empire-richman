@@ -8,8 +8,8 @@ export function FootballPanel({ business }: { business: Business }) {
   const data = business.data as FootballData;
   const { money, buyFootballPlayer, upgradeStadium } = useGameStore();
 
-  const stadiumCost = data.stadiumLevel * 5_000_000;
-  const matchIncome = data.stadiumLevel * 250 * data.ticketPrice;
+  const stadiumCost = BigInt(data.stadiumLevel) * 5_000_000n;
+  const matchIncome = BigInt(data.stadiumLevel) * 250n * data.ticketPrice;
 
   return (
     <div className="space-y-6">

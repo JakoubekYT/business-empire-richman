@@ -12,7 +12,7 @@ export function TaxiPanel({ business }: { business: Business }) {
 
   const totalIncome = data.ownedCars
     .filter(c => !c.broken)
-    .reduce((sum, car) => sum + TAXI_CAR_MODELS.find(m => m.id === car.modelId)!.incomePerHour, 0);
+    .reduce((sum, car) => sum + TAXI_CAR_MODELS.find(m => m.id === car.modelId)!.incomePerHour, 0n);
 
   return (
     <div className="space-y-6">

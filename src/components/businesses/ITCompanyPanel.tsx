@@ -20,8 +20,8 @@ export function ITCompanyPanel({ business }: { business: Business }) {
 
   const totalSalary = data.employees.reduce((sum, emp) => {
     const role = EMPLOYEE_TYPES.find(r => r.id === emp.roleId);
-    return sum + (role?.salary || 0);
-  }, 0);
+    return sum + (role?.salary || 0n);
+  }, 0n);
 
   const busyIds = new Set(data.activeProjects.flatMap(p => p.assignedEmployeeIds));
   const freeEmployees = data.employees.filter(e => !busyIds.has(e.id));

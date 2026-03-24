@@ -92,18 +92,18 @@ function PropertyCard({ property }: { property: Property }) {
                     <span style={{ fontSize: 18 }}>{imp.icon}</span>
                     <div style={{ flex: 1 }}>
                       <div style={{ fontSize: 13, fontWeight: 600 }}>{imp.name}</div>
-                      <div style={{ fontSize: 11, color: "var(--accent-green)" }}>+{formatMoney(property.baseIncomePerHour * (imp.incomeBonusPercent / 100))}/hr</div>
+                      <div style={{ fontSize: 11, color: "var(--accent-green)" }}>+{formatMoney(property.baseIncomePerHour * BigInt(imp.incomeBonusPercent) / 100n)}/hr</div>
                     </div>
                     {imp.purchased ? (
                       <span className="badge badge-green" style={{ fontSize: 10 }}>✓ Done</span>
                     ) : (
                       <button
-                        className={`btn btn-sm ${money >= (property.basePurchaseCost * (imp.costPercent / 100)) ? "btn-gold" : "btn-ghost"}`}
+                        className={`btn btn-sm ${money >= (property.basePurchaseCost * BigInt(imp.costPercent) / 100n) ? "btn-gold" : "btn-ghost"}`}
                         style={{ fontSize: 11, padding: "5px 10px" }}
                         onClick={() => buyImprovement(property.id, imp.id)}
-                        disabled={money < (property.basePurchaseCost * (imp.costPercent / 100))}
+                        disabled={money < (property.basePurchaseCost * BigInt(imp.costPercent) / 100n)}
                       >
-                        {formatMoney(property.basePurchaseCost * (imp.costPercent / 100))}
+                        {formatMoney(property.basePurchaseCost * BigInt(imp.costPercent) / 100n)}
                       </button>
                     )}
                   </div>
@@ -121,9 +121,9 @@ export default function PropertiesPage() {
   const { properties, money, claimAllProperties } = useGameStore();
   const propertyIncome = properties.reduce((sum, p) => {
     if (!p.owned) return sum;
-    return sum + p.baseIncomePerHour + p.improvements.reduce((ib, i) => (i.purchased ? ib + (p.baseIncomePerHour * (i.incomeBonusPercent / 100)) : ib), 0);
-  }, 0);
-  const totalPendingRent = properties.reduce((sum, p) => sum + (p.pendingRent || 0), 0);
+    return sum + p.baseIncomePerHour + p.improvements.reduce((ib, i) => (i.purchased ? ib + (p.baseIncomePerHour * BigInt(i.incomeBonusPercent) / 100n) : ib), 0n);
+  }, 0n);
+  const totalPendingRent = properties.reduce((sum, p) => sum + (p.pendingRent || 0n), 0n);
   const ownedCount = properties.filter((p) => p.owned).length;
 
   return (

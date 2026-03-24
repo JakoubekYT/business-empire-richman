@@ -8,16 +8,16 @@ export function ClothingPanel({ business }: { business: Business }) {
   const data = business.data as Extract<import("../../types/game").BusinessData, { ownedCollections: string[], ownedStores: string[] }>;
   const { money, designClothingCollection, openClothingStore } = useGameStore();
 
-  let baseIncome = 0;
+  let baseIncome = 0n;
   data.ownedCollections.forEach(cId => {
     const c = CLOTHING_COLLECTIONS.find(cc => cc.id === cId);
     if (c) baseIncome += c.incomePerHour;
   });
 
-  let totalMultiplier = 1;
+  let totalMultiplier = 1n;
   data.ownedStores.forEach(sId => {
     const s = CLOTHING_STORES_DATA.find(ss => ss.id === sId);
-    if (s) totalMultiplier += s.incomeMultiplier;
+    if (s) totalMultiplier += BigInt(s.incomeMultiplier);
   });
 
   const finalIncome = baseIncome * totalMultiplier;
@@ -32,7 +32,7 @@ export function ClothingPanel({ business }: { business: Business }) {
              Base: <strong>{formatMoney(baseIncome)}/hr</strong>
            </span>
            <span className="text-sm border border-fuchsia-800 bg-fuchsia-900/30 px-3 py-1 rounded-full text-fuchsia-300 shadow-inner">
-             Multiplier: <strong>x{totalMultiplier}</strong>
+             Multiplier: <strong>x{totalMultiplier.toString()}</strong>
            </span>
         </div>
       </div>

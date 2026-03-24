@@ -110,10 +110,10 @@ export function DealershipPanel({ business }: { business: Business }) {
             <p className="text-slate-400 text-sm mb-4">Mechanics are needed to repair car issues simultaneously.</p>
             <button
               onClick={() => buyMechanic(business.id)}
-              disabled={money < (data.mechanicsOwned + 1) * 15000 || data.mechanicsOwned >= data.mechanicSlots}
+              disabled={money < BigInt(data.mechanicsOwned + 1) * 15000n || data.mechanicsOwned >= data.mechanicSlots}
               className="px-6 py-3 rounded-lg bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-700 disabled:text-slate-500 text-white font-bold transition-colors"
             >
-              Hire Mechanic ({formatMoney((data.mechanicsOwned + 1) * 15000)})
+              Hire Mechanic ({formatMoney(BigInt(data.mechanicsOwned + 1) * 15000n)})
             </button>
           </div>
         </div>
@@ -128,9 +128,9 @@ export function DealershipPanel({ business }: { business: Business }) {
             <div className="space-y-4">
               {data.inventory.filter(c => !c.sold).map((car) => {
                 const model = DEALER_CAR_MODELS.find(m => m.id === car.modelId)!;
-                const totalInvested = car.buyPrice + car.issues.filter(i => i.isRepaired || car.activeRepairIndex !== null).reduce((s, i) => s + i.repairCost, 0);
-                const penalty = car.issues.reduce((s, i) => i.isRepaired ? s : s + (i.repairCost * 1.5), 0);
-                const currentSalePrice = Math.max(car.buyPrice * 0.8, model.maxSalePrice - penalty);
+                const totalInvested = car.buyPrice + car.issues.filter(i => i.isRepaired || car.activeRepairIndex !== null).reduce((s, i) => s + i.repairCost, 0n);
+                const penalty = car.issues.reduce((s, i) => i.isRepaired ? s : s + (i.repairCost * 15n / 10n), 0n);
+                const currentSalePrice = car.buyPrice * 8n / 10n > model.maxSalePrice - penalty ? car.buyPrice * 8n / 10n : model.maxSalePrice - penalty;
                 const allRepaired = car.issues.every(i => i.isRepaired);
                 
                 return (

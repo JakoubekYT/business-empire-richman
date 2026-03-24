@@ -13,8 +13,8 @@ export function FactoryPanel({ business }: { business: Business }) {
   
   const totalIncome = data.lines.reduce((sum, line) => {
     const prod = FACTORY_PRODUCTS.find(p => p.id === line.productId);
-    return sum + (prod?.incomePerHour || 0);
-  }, 0);
+    return sum + (prod?.incomePerHour || 0n);
+  }, 0n);
 
   return (
     <div className="space-y-6">

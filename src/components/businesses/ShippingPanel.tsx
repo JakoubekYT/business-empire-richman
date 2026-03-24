@@ -12,7 +12,7 @@ export function ShippingPanel({ business }: { business: Business }) {
 
   const totalIncome = data.ownedVehicles
     .filter(v => !v.broken)
-    .reduce((sum, v) => sum + SHIPPING_VEHICLE_MODELS.find(m => m.id === v.modelId)!.incomePerHour, 0);
+    .reduce((sum, v) => sum + SHIPPING_VEHICLE_MODELS.find(m => m.id === v.modelId)!.incomePerHour, 0n);
 
   return (
     <div className="space-y-6">

@@ -19,8 +19,8 @@ export function StorePanel({ business }: { business: Business }) {
   const totalIncome = data.activeProducts.reduce((sum, ap) => {
     const product = STORE_PRODUCTS.find(p => p.id === ap.productId)!;
     const isOut = (now - ap.restockedAt) / 3600000 >= product.stockHours;
-    return sum + (isOut ? 0 : product.incomePerHour);
-  }, 0);
+    return sum + (isOut ? 0n : product.incomePerHour);
+  }, 0n);
 
   const outOfStockCount = data.activeProducts.filter(ap => {
     const product = STORE_PRODUCTS.find(p => p.id === ap.productId)!;
@@ -125,10 +125,10 @@ export function StorePanel({ business }: { business: Business }) {
             <p className="text-slate-400 text-sm mb-4">Each shelf allows you to stock one product type.</p>
             <button
               onClick={() => buyStoreShelf(business.id)}
-              disabled={money < (data.shelves + 1) * 1500 || data.shelves >= 20}
+              disabled={money < BigInt(data.shelves + 1) * 1500n || data.shelves >= 20}
               className="w-full sm:w-auto px-6 py-3 rounded-lg bg-teal-600 hover:bg-teal-500 disabled:bg-slate-700 disabled:text-slate-500 text-white font-bold transition-colors"
             >
-              Buy New Shelf ({formatMoney((data.shelves + 1) * 1500)})
+              Buy New Shelf ({formatMoney(BigInt(data.shelves + 1) * 1500n)})
             </button>
           </div>
         </div>

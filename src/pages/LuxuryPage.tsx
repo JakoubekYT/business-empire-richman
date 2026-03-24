@@ -104,7 +104,7 @@ export default function LuxuryPage() {
 
   const filtered = filter === "ALL" ? luxuryItems : luxuryItems.filter((l) => l.category === filter);
   const ownedItems = luxuryItems.filter((l) => l.owned);
-  const ownedNetWorth = ownedItems.reduce((s, l) => s + l.baseNetWorthBoost, 0);
+  const ownedNetWorth = ownedItems.reduce((s, l) => s + l.baseNetWorthBoost, 0n);
 
   return (
     <div className="section">
