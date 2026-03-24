@@ -1,23 +1,21 @@
 import { useState } from "react";
 import { useGameStore } from "../store/gameStore";
-import { formatMoney, getUpgradeCost } from "../utils/format";
+import { formatMoney } from "../utils/format";
 import type { Business } from "../types/game";
+import { BusinessDetailPanel } from "../components/BusinessDetailPanel";
 
-function BusinessCard({ business }: { business: Business }) {
-  const { buyBusiness, upgradeBusiness, money } = useGameStore();
-
-  const upgradeCost = getUpgradeCost(business.upgradeCost, business.level);
+function BusinessCard({ business, onClick }: { business: Business, onClick?: () => void }) {
+  const { unlockBusiness, money } = useGameStore();
   const canAffordUnlock = money >= business.unlockCost;
-  const canAffordUpgrade = money >= upgradeCost;
-  const incomePerSec = (business.incomePerHour * business.level) / 3600;
 
   return (
-    <div className="card" style={{
+    <div className="card" onClick={business.owned ? onClick : undefined} style={{
       padding: 16,
       border: business.owned ? `1px solid ${business.color}30` : "1px solid var(--border)",
       background: business.owned ? `linear-gradient(135deg, var(--bg-card), ${business.color}08)` : "var(--bg-card)",
       transition: "all 0.2s",
       animation: "slideInUp 0.3s ease",
+      cursor: business.owned ? "pointer" : "default",
     }}>
       <div style={{ display: "flex", alignItems: "flex-start", gap: 12, marginBottom: 12 }}>
         <div style={{
@@ -36,86 +34,45 @@ function BusinessCard({ business }: { business: Business }) {
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 2 }}>{business.name}</div>
-          <span className="badge" style={{ fontSize: 10, background: `${business.color}15`, color: business.color, border: `1px solid ${business.color}30` }}>
-            {business.category}
+          <span className="badge" style={{ fontSize: 10, background: `${business.color}15`, color: business.color, border: `1px solid ${business.color}30`, textTransform: 'uppercase' }}>
+            {business.type.replace('_', ' ')}
           </span>
         </div>
         {business.owned && (
           <span className="badge badge-green" style={{ fontSize: 10, flexShrink: 0 }}>
-            Lv.{business.level}
+            ACQUIRED
           </span>
         )}
       </div>
 
-      {business.owned && (
+      {business.owned ? (
         <div style={{ marginBottom: 12 }}>
-          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
-            <span style={{ color: "var(--text-secondary)", fontSize: 13 }}>Income/hr</span>
-            <span style={{ color: business.color, fontWeight: 700, fontSize: 13 }}>
-              {formatMoney(business.incomePerHour * business.level)}
-            </span>
-          </div>
-          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
-            <span style={{ color: "var(--text-secondary)", fontSize: 13 }}>Income/sec</span>
-            <span style={{ color: "var(--text-muted)", fontSize: 13 }}>
-              {incomePerSec > 0 ? `$${incomePerSec.toFixed(2)}/s` : "$0/s"}
-            </span>
-          </div>
-          {/* Level bar */}
-          <div className="progress-bar">
-            <div className="progress-fill" style={{
-              width: `${(business.level / business.maxLevel) * 100}%`,
-              background: business.color === "#4ade80" ? "linear-gradient(135deg, #4ade80, #22d3a0)" : `linear-gradient(135deg, ${business.color}, ${business.color}bb)`,
-            }} />
-          </div>
-          <div style={{ display: "flex", justifyContent: "space-between", marginTop: 4, fontSize: 11, color: "var(--text-muted)" }}>
-            <span>Level {business.level}</span>
-            <span>{business.level < business.maxLevel ? `Max: ${business.maxLevel}` : "MAX LEVEL"}</span>
-          </div>
-        </div>
-      )}
-
-      {!business.owned && (
-        <p style={{ color: "var(--text-muted)", fontSize: 13, marginBottom: 12, lineHeight: 1.4 }}>
-          {business.description}
-        </p>
-      )}
-
-      <div style={{ display: "flex", gap: 8 }}>
-        {!business.owned ? (
+          <p style={{ color: "var(--text-secondary)", fontSize: 13, marginBottom: 12, lineHeight: 1.4 }}>
+             Tap to open the business management panel and expand your empire's reach.
+          </p>
           <button
-            className={`btn ${canAffordUnlock ? "btn-gold" : "btn-ghost"}`}
-            style={{ flex: 1, fontSize: 13 }}
-            onClick={() => buyBusiness(business.id)}
+            className="btn btn-gold w-full"
+            style={{ fontSize: 13 }}
+            onClick={onClick}
+          >
+            Manage Enterprise
+          </button>
+        </div>
+      ) : (
+        <div>
+          <p style={{ color: "var(--text-muted)", fontSize: 13, marginBottom: 12, lineHeight: 1.4 }}>
+            {business.description}
+          </p>
+          <button
+            className={`btn w-full ${canAffordUnlock ? "btn-gold" : "btn-ghost"}`}
+            style={{ fontSize: 13 }}
+            onClick={(e) => { e.stopPropagation(); unlockBusiness(business.id); }}
             disabled={!canAffordUnlock}
           >
             {business.unlockCost === 0 ? "🚀 Start Free!" : `🔓 ${formatMoney(business.unlockCost)}`}
           </button>
-        ) : (
-          <>
-            {business.level < business.maxLevel ? (
-              <button
-                className={`btn ${canAffordUpgrade ? "btn-gold" : "btn-ghost"}`}
-                style={{ flex: 1, fontSize: 13 }}
-                onClick={() => upgradeBusiness(business.id)}
-                disabled={!canAffordUpgrade}
-              >
-                ⬆️ {formatMoney(upgradeCost)}
-              </button>
-            ) : (
-              business.mergeItem ? (
-                <button className="btn btn-ghost" style={{ flex: 1, fontSize: 12 }} disabled>
-                  🔗 Merge: {business.mergeItem}
-                </button>
-              ) : (
-                <div className="badge badge-gold" style={{ flex: 1, justifyContent: "center" }}>
-                  ✨ Maxed Out!
-                </div>
-              )
-            )}
-          </>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -123,9 +80,10 @@ function BusinessCard({ business }: { business: Business }) {
 export default function BusinessesPage() {
   const { businesses, incomePerHour, money } = useGameStore();
   const [filter, setFilter] = useState<string>("ALL");
+  const [selectedBusiness, setSelectedBusiness] = useState<Business | null>(null);
 
-  const categories = ["ALL", "RETAIL", "MANUFACTURING", "SERVICE", "FINANCE", "ENTERTAINMENT", "ENERGY", "TECH"];
-  const filtered = filter === "ALL" ? businesses : businesses.filter((b) => b.category === filter);
+  const categories = ["ALL", "taxi", "car_dealership", "store", "factory", "shipping", "construction", "it_company", "bank", "football", "oil_gas", "clothing", "space"];
+  const filtered = filter === "ALL" ? businesses : businesses.filter((b) => b.type === filter);
   const ownedCount = businesses.filter((b) => b.owned).length;
 
   return (
@@ -166,9 +124,17 @@ export default function BusinessesPage() {
       {/* Business grid */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 12 }}>
         {filtered.map((business) => (
-          <BusinessCard key={business.id} business={business} />
+          <BusinessCard key={business.id} business={business} onClick={() => setSelectedBusiness(business)} />
         ))}
       </div>
+
+      {/* Detail Panel overlay */}
+      {selectedBusiness && (
+        <BusinessDetailPanel
+          business={selectedBusiness}
+          onClose={() => setSelectedBusiness(null)}
+        />
+      )}
     </div>
   );
 }

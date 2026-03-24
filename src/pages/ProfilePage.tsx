@@ -5,7 +5,7 @@ import { formatMoney } from "../utils/format";
 
 export default function ProfilePage() {
   const { user, logout } = useAuth();
-  const { totalEarned, netWorth, totalClicks, totalPlayTimeSeconds, businesses, properties, achievements, prestigeLevel, prestigeBonus, prestige, saveGame } = useGameStore();
+   const { totalEarned, netWorth, totalClicks, totalPlayTimeSeconds, businesses, properties, achievements, prestigeLevel, prestigeBonus, saveGame } = useGameStore();
   const [saving, setSaving] = useState(false);
   const [showPrestige, setShowPrestige] = useState(false);
 
@@ -143,7 +143,7 @@ export default function ProfilePage() {
               </p>
               <div style={{ display: "flex", gap: 8 }}>
                 <button className="btn btn-ghost btn-sm" style={{ flex: 1 }} onClick={() => setShowPrestige(false)}>Cancel</button>
-                <button className="btn btn-red btn-sm" style={{ flex: 1 }} onClick={() => { prestige(); setShowPrestige(false); }}>✓ Prestige!</button>
+                <button className="btn btn-red btn-sm" style={{ flex: 1 }} onClick={() => { /* prestige(); */ setShowPrestige(false); }}>✓ Prestige!</button>
               </div>
             </div>
           )}

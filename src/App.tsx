@@ -28,7 +28,7 @@ function ProtectedApp() {
 
   useEffect(() => {
     if (!user) return;
-    const tickInterval = setInterval(() => tick(1), 1000);
+    const tickInterval = setInterval(() => tick(), 1000);
     const marketInterval = setInterval(() => updateMarketPrices(), 5000);
     const saveInterval = setInterval(() => saveGame(), 30000);
     return () => {

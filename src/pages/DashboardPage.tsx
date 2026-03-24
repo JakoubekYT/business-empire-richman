@@ -2,6 +2,7 @@ import { useState, useRef } from "react";
 import { useGameStore } from "../store/gameStore";
 import { useAuth } from "../contexts/AuthContext";
 import { formatMoney } from "../utils/format";
+import { INITIAL_CLICK_UPGRADES } from "../data/gameData";
 
 interface ClickParticle {
   id: number;
@@ -11,7 +12,7 @@ interface ClickParticle {
 }
 
 export default function DashboardPage() {
-  const { money, totalEarned, incomePerHour, netWorth, click, achievements, dailyTasks, claimAchievement, claimDailyTask, businesses, properties } = useGameStore();
+  const { money, totalEarned, incomePerHour, netWorth, click, achievements, dailyTasks, claimAchievement, claimDailyTask, businesses, properties, buyClickUpgrade, clickUpgrades, clickValue } = useGameStore();
   const { user } = useAuth();
   const [particles, setParticles] = useState<ClickParticle[]>([]);
   const [clickAnim, setClickAnim] = useState(false);
@@ -23,7 +24,7 @@ export default function DashboardPage() {
     setTimeout(() => setClickAnim(false), 100);
     const rect = e.currentTarget.getBoundingClientRect();
     const id = particleIdRef.current++;
-    setParticles((prev) => [...prev, { id, x: e.clientX - rect.left, y: e.clientY - rect.top, value: 1 }]);
+    setParticles((prev) => [...prev, { id, x: e.clientX - rect.left, y: e.clientY - rect.top, value: clickValue }]);
     setTimeout(() => setParticles((prev) => prev.filter((p) => p.id !== id)), 800);
   };
 
@@ -112,8 +113,35 @@ export default function DashboardPage() {
       </div>
 
       <p style={{ textAlign: "center", color: "var(--text-muted)", fontSize: 13, marginBottom: 24 }}>
-        Tap the coin to earn money! 💡
+        Tap the coin to earn {formatMoney(clickValue)}! 💡
       </p>
+
+      {/* Upgrades */}
+      <div style={{ marginBottom: 24 }}>
+        <h3 style={{ fontWeight: 700, marginBottom: 12, fontSize: 15 }}>⚡ Clicker Upgrades</h3>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 8 }}>
+          {INITIAL_CLICK_UPGRADES.map(u => {
+            const owned = clickUpgrades.some(id => id === u.id);
+            return (
+              <div key={u.id} className="card" style={{ padding: 12, border: "1px solid var(--border)", display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                <div>
+                  <div style={{ fontWeight: 600, fontSize: 13 }}>{u.name}</div>
+                  <div style={{ fontSize: 11, color: "var(--text-secondary)", marginTop: 2 }}>{u.description}</div>
+                  <div style={{ fontSize: 11, color: "var(--accent-gold)", marginTop: 4, fontWeight: 'bold' }}>Effect: {u.effectType === 'mult_click' ? `x${u.value} Clicks` : `+${u.value} ${u.effectType === 'add_auto' ? 'Auto/s' : 'per Click'}`}</div>
+                </div>
+                <button 
+                  style={{ marginTop: 8, fontSize: 12 }} 
+                  className={`btn btn-sm w-full ${owned ? 'btn-ghost' : money >= u.cost ? 'btn-gold' : 'btn-ghost'}`}
+                  disabled={owned || money < u.cost}
+                  onClick={() => buyClickUpgrade(u.id)}
+                >
+                  {owned ? 'Owned' : formatMoney(u.cost)}
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      </div>
 
       {/* Quick Stats */}
       <div className="card" style={{ padding: 16, marginBottom: 16 }}>

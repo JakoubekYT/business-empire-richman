@@ -22,15 +22,15 @@ const CATEGORY_LABELS: Record<LuxuryCategory, string> = {
 };
 
 function LuxuryCard({ item }: { item: LuxuryItem }) {
-  const { buyLuxury, money, crypto } = useGameStore();
+  const { buyLuxuryItem, money, crypto } = useGameStore();
 
   const canAfford = item.costCurrency === "crypto" && item.cryptoCoinId
     ? crypto.find((c) => c.id === item.cryptoCoinId)?.amountOwned ?? 0 >= (item.cryptoAmount ?? 0)
-    : money >= item.cost;
+    : money >= item.baseCost;
 
   const priceDisplay = item.costCurrency === "crypto" && item.cryptoCoinId
-    ? `${item.cryptoAmount} EXX`
-    : formatMoney(item.cost);
+    ? `${item.cryptoAmount}`
+    : formatMoney(item.baseCost);
 
   return (
     <div className="card" style={{
@@ -76,7 +76,7 @@ function LuxuryCard({ item }: { item: LuxuryItem }) {
         </div>
         <div style={{ textAlign: "right" }}>
           <div style={{ fontSize: 11, color: "var(--text-muted)", fontWeight: 600, marginBottom: 2 }}>NET WORTH +</div>
-          <div style={{ fontWeight: 700, color: "var(--accent-green)" }}>{formatMoney(item.netWorthBoost)}</div>
+          <div style={{ fontWeight: 700, color: "var(--accent-green)" }}>{formatMoney(item.baseNetWorthBoost)}</div>
         </div>
       </div>
 
@@ -88,7 +88,7 @@ function LuxuryCard({ item }: { item: LuxuryItem }) {
         <button
           className={`btn ${canAfford ? "btn-gold" : "btn-ghost"}`}
           style={{ width: "100%", fontSize: 14 }}
-          onClick={() => buyLuxury(item.id)}
+          onClick={() => buyLuxuryItem(item.id, [])}
           disabled={!canAfford}
         >
           {canAfford ? `Buy for ${priceDisplay}` : `Need ${priceDisplay}`}
@@ -104,7 +104,7 @@ export default function LuxuryPage() {
 
   const filtered = filter === "ALL" ? luxuryItems : luxuryItems.filter((l) => l.category === filter);
   const ownedItems = luxuryItems.filter((l) => l.owned);
-  const ownedNetWorth = ownedItems.reduce((s, l) => s + l.netWorthBoost, 0);
+  const ownedNetWorth = ownedItems.reduce((s, l) => s + l.baseNetWorthBoost, 0);
 
   return (
     <div className="section">

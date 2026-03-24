@@ -8,7 +8,7 @@ function PropertyCard({ property }: { property: Property }) {
   const [expanded, setExpanded] = useState(false);
 
   const totalImprovedIncome = property.owned
-    ? property.baseIncomePerHour + property.improvements.reduce((sum, i) => (i.purchased ? sum + i.incomeBonus : sum), 0)
+    ? property.baseIncomePerHour + property.improvements.reduce((sum, i) => (i.purchased ? sum + (property.baseIncomePerHour * (i.incomeBonusPercent / 100)) : sum), 0)
     : 0;
   const allImproved = property.improvements.every((i) => i.purchased);
 
@@ -64,12 +64,12 @@ function PropertyCard({ property }: { property: Property }) {
 
         {!property.owned ? (
           <button
-            className={`btn ${money >= property.purchaseCost ? "btn-gold" : "btn-ghost"}`}
+            className={`btn ${money >= property.basePurchaseCost ? "btn-gold" : "btn-ghost"}`}
             style={{ width: "100%", fontSize: 13 }}
             onClick={() => buyProperty(property.id)}
-            disabled={money < property.purchaseCost}
+            disabled={money < property.basePurchaseCost}
           >
-            🏠 Buy for {formatMoney(property.purchaseCost)}
+            🏠 Buy for {formatMoney(property.basePurchaseCost)}
           </button>
         ) : (
           <div>
@@ -95,18 +95,18 @@ function PropertyCard({ property }: { property: Property }) {
                     <span style={{ fontSize: 18 }}>{imp.icon}</span>
                     <div style={{ flex: 1 }}>
                       <div style={{ fontSize: 13, fontWeight: 600 }}>{imp.name}</div>
-                      <div style={{ fontSize: 11, color: "var(--accent-green)" }}>+{formatMoney(imp.incomeBonus)}/hr</div>
+                      <div style={{ fontSize: 11, color: "var(--accent-green)" }}>+{formatMoney(property.baseIncomePerHour * (imp.incomeBonusPercent / 100))}/hr</div>
                     </div>
                     {imp.purchased ? (
                       <span className="badge badge-green" style={{ fontSize: 10 }}>✓ Done</span>
                     ) : (
                       <button
-                        className={`btn btn-sm ${money >= imp.cost ? "btn-gold" : "btn-ghost"}`}
+                        className={`btn btn-sm ${money >= (property.basePurchaseCost * (imp.costPercent / 100)) ? "btn-gold" : "btn-ghost"}`}
                         style={{ fontSize: 11, padding: "5px 10px" }}
                         onClick={() => buyImprovement(property.id, imp.id)}
-                        disabled={money < imp.cost}
+                        disabled={money < (property.basePurchaseCost * (imp.costPercent / 100))}
                       >
-                        {formatMoney(imp.cost)}
+                        {formatMoney(property.basePurchaseCost * (imp.costPercent / 100))}
                       </button>
                     )}
                   </div>
@@ -124,7 +124,7 @@ export default function PropertiesPage() {
   const { properties, money } = useGameStore();
   const propertyIncome = properties.reduce((sum, p) => {
     if (!p.owned) return sum;
-    return sum + p.baseIncomePerHour + p.improvements.reduce((ib, i) => (i.purchased ? ib + i.incomeBonus : ib), 0);
+    return sum + p.baseIncomePerHour + p.improvements.reduce((ib, i) => (i.purchased ? ib + (p.baseIncomePerHour * (i.incomeBonusPercent / 100)) : ib), 0);
   }, 0);
   const ownedCount = properties.filter((p) => p.owned).length;
 
